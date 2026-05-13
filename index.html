@@ -153,7 +153,9 @@ textarea.input{min-height:88px;resize:vertical}
 .btn.sec:hover{background:#022a3d}
 .btn.acc{background:var(--accent);border-color:var(--accent-dark);color:#fff}
 .btn.acc:hover{background:var(--accent-dark)}
-.btn.danger{background:var(--danger);border-color:#7a1928}
+.btn.danger{background:var(--danger);border-color:#7a1928;color:#fff}
+.btn.ghost.danger{background:var(--danger);border-color:#7a1928;color:#fff}
+.btn.ghost.danger:hover{background:#7a1928;color:#fff}
 .btn.sm{padding:6px 10px;min-height:32px;font-size:12px;border-radius:8px}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap}
 
@@ -276,8 +278,8 @@ textarea.input{min-height:88px;resize:vertical}
 // ============================================================================
 
 const SUPABASE_CONFIG = {
-  url: 'https://gnhmnsstchpmjibujthb.supabase.co',
-  anonKey: 'sb_publishable_vhcOhNuZod5hbv6p3pFn_A_sM5rydim'
+  url: 'https://YOUR-PROJECT.supabase.co',
+  anonKey: 'YOUR-ANON-KEY-HERE'
 };
 
 // ---- state ----
@@ -316,8 +318,19 @@ const el = (tag, attrs={}, ...children) => {
   return e;
 };
 
-const dkk = n => (n == null || isNaN(n)) ? '—' : new Intl.NumberFormat('da-DK',{style:'currency',currency:'DKK',maximumFractionDigits:2}).format(n);
-const num = (n, d=2) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('da-DK',{minimumFractionDigits:0,maximumFractionDigits:d});
+// Currency + locale læses fra aktiv tenant (med fornuftige fallbacks)
+function currentTenant() {
+  return state.tenants.find(t => t.id === state.activeTenantId);
+}
+function currentCurrency() { return currentTenant()?.currency || 'DKK'; }
+function currentLocale()   { return currentTenant()?.locale   || 'da-DK'; }
+
+const money = n => (n == null || isNaN(n)) ? '—' : new Intl.NumberFormat(currentLocale(),{style:'currency',currency:currentCurrency(),maximumFractionDigits:2}).format(n);
+// Bagudkompatibilitet: dkk() er alias for money() — alle eksisterende kald virker stadig
+const dkk = money;
+const num = (n, d=2) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString(currentLocale(),{minimumFractionDigits:0,maximumFractionDigits:d});
+// Unit-price uden valuta (priser pr. ml/gr/stk vises som rent tal — valuta findes på sell prices)
+const unitPrice = (n, d=2) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString(currentLocale(),{minimumFractionDigits:0,maximumFractionDigits:d});
 
 function toast(msg, kind='') {
   const t = el('div', {class:'toast ' + kind}, msg);
@@ -379,10 +392,10 @@ async function afterLogin() {
 }
 
 async function loadTenants() {
-  // Get memberships + tenant
+  // Get memberships + tenant (incl. currency + locale)
   const { data, error } = await state.sb
     .from('memberships')
-    .select('role, tenant_id, tenants(id, slug, name, city, theme, subscription_tier)')
+    .select('role, tenant_id, tenants(id, slug, name, city, theme, subscription_tier, currency, locale)')
     .eq('user_id', state.user.id);
   if (error) { toast('Could not load tenants: ' + error.message, 'bad'); return; }
   state.tenants = (data || [])
@@ -542,7 +555,12 @@ function renderTopbar() {
     await state.sb.auth.signOut();
   }}, '⎋');
 
-  return el('header', { class: 'topbar' }, brand, switcher, userBtn);
+  const isAdmin = currentRole() === 'admin';
+  const settingsBtn = isAdmin
+    ? el('button', { class: 'icon-btn', title: 'Tenant settings', onclick: openTenantSettings }, '⚙')
+    : null;
+
+  return el('header', { class: 'topbar' }, brand, switcher, settingsBtn, userBtn);
 }
 
 function renderNav() {
@@ -906,7 +924,7 @@ function renderPrepDetail(v, id) {
   hero.appendChild(el('div',{class:'meta'},
     el('div',{}, el('b',{},'Yield'), `${num(p.yield_quantity)} ${p.yield_unit}`),
     el('div',{}, el('b',{},'Shelf life'), p.shelf_life ? p.shelf_life.slice(0,40) : '—'),
-    el('div',{}, el('b',{},'Kost/'+p.yield_unit), ppu != null ? dkk(ppu) : '—'),
+    el('div',{}, el('b',{},'Cost / '+p.yield_unit), ppu != null ? unitPrice(ppu) : '—'),
   ));
   v.appendChild(hero);
 
@@ -1029,7 +1047,7 @@ function renderInventory(v) {
         el('div',{class:'name'}, i.name),
         el('div',{class:'meta'},
           (i.category || '—') + ' · ' + (i.supplier || '—') + ' · ' +
-          (ppu != null ? dkk(ppu) + '/' + (i.purchase_unit||'') : 'no price'))
+          (ppu != null ? unitPrice(ppu) + ' / ' + (i.purchase_unit||'') : 'no price'))
       );
       if (isAdmin) main.addEventListener('click', () => openIngredientEditor(i));
       row.appendChild(main);
@@ -1432,6 +1450,89 @@ async function openCocktailEditor(c) {
 }
 
 // ============================================================================
+// TENANT SETTINGS (currency, locale)
+// ============================================================================
+const COMMON_CURRENCIES = [
+  ['DKK','Danish krone'], ['EUR','Euro'], ['CHF','Swiss franc'],
+  ['GBP','British pound'], ['USD','US dollar'], ['SEK','Swedish krona'],
+  ['NOK','Norwegian krone'], ['JPY','Japanese yen'],
+];
+const COMMON_LOCALES = [
+  ['en-GB','English (UK) — 1,234.56'],
+  ['en-US','English (US) — 1,234.56'],
+  ['da-DK','Danish — 1.234,56'],
+  ['de-CH','German (Switzerland) — 1’234.56'],
+  ['de-DE','German (Germany) — 1.234,56'],
+  ['fr-FR','French — 1 234,56'],
+  ['es-ES','Spanish — 1.234,56'],
+  ['it-IT','Italian — 1.234,56'],
+  ['nl-NL','Dutch — 1.234,56'],
+];
+
+async function openTenantSettings() {
+  const t = currentTenant();
+  if (!t) return;
+  const form = el('div');
+
+  // Name (read-only — vi vil ikke have admins ændre tenant-name uden videre)
+  form.appendChild(el('div',{class:'field'},
+    el('label',{}, 'Tenant'),
+    el('div',{style:{padding:'10px 12px',background:'rgba(26,26,26,.04)',borderRadius:'8px',fontWeight:600}},
+      `${t.name} · ${t.city || ''}`),
+  ));
+
+  // Currency
+  const curSel = el('select',{class:'input'});
+  COMMON_CURRENCIES.forEach(([code,label]) => {
+    const o = el('option',{value:code}, `${code} — ${label}`);
+    if (code === (t.currency || 'DKK')) o.selected = true;
+    curSel.appendChild(o);
+  });
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Currency'), curSel));
+
+  // Locale
+  const locSel = el('select',{class:'input'});
+  COMMON_LOCALES.forEach(([code,label]) => {
+    const o = el('option',{value:code}, label);
+    if (code === (t.locale || 'da-DK')) o.selected = true;
+    locSel.appendChild(o);
+  });
+  form.appendChild(el('div',{class:'field'},
+    el('label',{},'Number / date format'),
+    locSel,
+    el('div',{style:{fontSize:'12px',color:'var(--ink-mute)',marginTop:'6px'}},
+      'Affects how numbers, dates and currency symbols are displayed.'),
+  ));
+
+  // Preview
+  const preview = el('div',{style:{padding:'12px',background:'rgba(138,21,56,.04)',border:'1px solid var(--line)',borderRadius:'8px',fontSize:'13px',marginTop:'12px'}});
+  const updatePreview = () => {
+    const cur = curSel.value, loc = locSel.value;
+    try {
+      const fmt = new Intl.NumberFormat(loc, {style:'currency', currency:cur, maximumFractionDigits:2});
+      preview.textContent = `Preview: ${fmt.format(1234.5)} · ${(1234.567).toLocaleString(loc,{maximumFractionDigits:2})}`;
+    } catch(e) {
+      preview.textContent = 'Invalid combination: ' + e.message;
+    }
+  };
+  curSel.addEventListener('change', updatePreview);
+  locSel.addEventListener('change', updatePreview);
+  updatePreview();
+  form.appendChild(preview);
+
+  await modal('Tenant settings', form, async () => {
+    const payload = { currency: curSel.value, locale: locSel.value };
+    const { error } = await state.sb.from('tenants').update(payload).eq('id', t.id);
+    if (error) return toast(error.message, 'bad');
+    t.currency = payload.currency;
+    t.locale = payload.locale;
+    toast('Settings saved','ok');
+    renderApp();
+    return true;
+  });
+}
+
+// ============================================================================
 // MODAL HELPER
 // ============================================================================
 let _currentModal = null;
@@ -1470,7 +1571,7 @@ function closeModal() {
 // UTIL
 // ============================================================================
 function currentRole() {
-  return state.tenants.find(t => t.id === state.activeTenantId)?.role;
+  return currentTenant()?.role;
 }
 
 // ============================================================================
