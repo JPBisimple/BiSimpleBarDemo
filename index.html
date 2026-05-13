@@ -1,2000 +1,1544 @@
-<!DOCTYPE html>
-<html lang="da">
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#043C57">
-<title>Razzia — Cocktail Index</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5E0E26">
+<title>Backbar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap">
 <style>
-:root {
-  --cerise: #8A1538;
-  --cerise-dark: #5E0E26;
-  --cerise-light: #B33A5C;
-  --petrol: #043C57;
-  --petrol-light: #0A5A7F;
-  --gold: #B7873B;
-  --gold-dark: #573B08;
-  --off-white: #F7F1E7;
-  --off-white-dark: #EDE5D2;
-  --ink: #1A1A1A;
-  --muted: #6B6359;
-  --muted-light: #A8A29A;
-  --success: #2E7D5B;
-  --warning: #C97A2E;
-  --danger: #B23A48;
-  --border: rgba(26, 26, 26, 0.08);
-  --shadow-sm: 0 1px 2px rgba(4, 60, 87, 0.06);
-  --shadow-md: 0 4px 12px rgba(4, 60, 87, 0.10);
-  --shadow-lg: 0 12px 32px rgba(4, 60, 87, 0.15);
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-html, body {
-  font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--off-white);
-  color: var(--ink);
-  font-size: 15px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-body { min-height: 100vh; }
-
-.serif { font-family: 'Playfair Display', Georgia, serif; }
-
-/* ============ APP SHELL ============ */
-#app {
-  max-width: 480px;
-  margin: 0 auto;
-  min-height: 100vh;
-  background: var(--off-white);
-  position: relative;
-  padding-bottom: 84px;
-  box-shadow: var(--shadow-lg);
-}
-
-@media (min-width: 768px) {
-  #app { max-width: 600px; }
-}
-
-/* ============ LOGIN SCREEN ============ */
-#login {
-  position: fixed;
-  inset: 0;
-  background: var(--petrol);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
-  z-index: 1000;
-  background-image:
-    radial-gradient(circle at 20% 10%, rgba(138, 21, 56, 0.4) 0%, transparent 50%),
-    radial-gradient(circle at 80% 90%, rgba(183, 135, 59, 0.2) 0%, transparent 50%);
-}
-
-#login.hidden { display: none; }
-
-.login-card {
-  background: var(--off-white);
-  padding: 40px 32px;
-  border-radius: 4px;
-  width: 100%;
-  max-width: 380px;
-  text-align: center;
-  border: 1px solid var(--gold);
-  position: relative;
-}
-
-.login-card::before, .login-card::after {
-  content: '';
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--gold);
-}
-.login-card::before { top: -8px; left: -8px; border-right: none; border-bottom: none; }
-.login-card::after { bottom: -8px; right: -8px; border-left: none; border-top: none; }
-
-.login-card .brand {
-  font-family: 'Playfair Display', serif;
-  font-size: 42px;
-  font-weight: 700;
-  color: var(--cerise);
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
-  font-style: italic;
-}
-
-.login-card .tagline {
-  font-size: 11px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--gold-dark);
-  margin-bottom: 32px;
-}
-
-.login-card .divider {
-  width: 40px;
-  height: 1px;
-  background: var(--gold);
-  margin: 0 auto 32px;
-}
-
-.input-group { margin-bottom: 16px; text-align: left; }
-.input-group label {
-  display: block;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-.input-group input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  background: white;
-  font-family: inherit;
-  font-size: 15px;
-  color: var(--ink);
-  border-radius: 2px;
-}
-.input-group input:focus { outline: none; border-color: var(--cerise); }
-
-.btn-primary {
-  width: 100%;
-  padding: 14px;
-  background: var(--cerise);
-  color: white;
-  border: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background 0.2s;
-  margin-top: 12px;
-}
-.btn-primary:hover { background: var(--cerise-dark); }
-.btn-primary:active { transform: scale(0.98); }
-
-.login-role-info {
-  margin-top: 20px;
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-}
-.login-role-info strong { color: var(--cerise); font-weight: 600; }
-
-/* ============ TOP BAR ============ */
-.topbar {
-  background: var(--petrol);
-  color: var(--off-white);
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  border-bottom: 2px solid var(--gold);
-}
-
-.topbar .brand-small {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  font-style: italic;
-  font-weight: 700;
-  color: var(--off-white);
-  letter-spacing: 0.02em;
-}
-
-.topbar .brand-small span { color: var(--gold); }
-
-.user-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--muted-light);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
-.user-badge .role-pill {
-  background: var(--cerise);
-  color: white;
-  padding: 3px 8px;
-  border-radius: 2px;
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.logout-btn {
-  background: none;
-  border: none;
-  color: var(--gold);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
-  margin-left: 8px;
-}
-
-/* ============ PAGE HEADER ============ */
-.page-header {
-  padding: 32px 24px 24px;
-  text-align: center;
-  background: var(--off-white);
-  position: relative;
-}
-
-.page-header .eyebrow {
-  font-size: 10px;
-  letter-spacing: 0.4em;
-  text-transform: uppercase;
-  color: var(--gold-dark);
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.page-header h1 {
-  font-family: 'Playfair Display', serif;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--cerise);
-  font-style: italic;
-  letter-spacing: 0.01em;
-  margin-bottom: 12px;
-}
-
-.page-header .divider {
-  width: 30px;
-  height: 1px;
-  background: var(--gold);
-  margin: 0 auto 12px;
-}
-
-.page-header .subtitle {
-  font-size: 13px;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-}
-
-/* ============ CONTENT WRAPPER ============ */
-.content {
-  padding: 0 20px 32px;
-}
-
-.view { display: none; animation: fadeIn 0.25s ease; }
-.view.active { display: block; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ============ INDEX (HOME) ============ */
-.index-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  background: white;
-  border: 1px solid var(--border);
-  padding: 16px 14px;
-  border-radius: 4px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--cerise);
-}
-
-.stat-card .number {
-  font-family: 'Playfair Display', serif;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--cerise);
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.stat-card .label {
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.alert-box {
-  background: white;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--warning);
-  padding: 14px 16px;
-  border-radius: 2px;
-  margin-bottom: 12px;
-}
-
-.alert-box.danger { border-left-color: var(--danger); }
-.alert-box.success { border-left-color: var(--success); }
-
-.alert-box .alert-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.alert-box .alert-meta {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.section-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--petrol);
-  margin: 24px 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-.section-title .count {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  background: var(--off-white-dark);
-  color: var(--muted);
-  padding: 3px 8px;
-  border-radius: 10px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-}
-
-/* ============ COCKTAIL LIST ============ */
-.cocktail-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 18px 20px;
-  margin-bottom: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-
-.cocktail-card:hover {
-  border-color: var(--cerise);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.cocktail-card .cocktail-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--cerise);
-  font-style: italic;
-  margin-bottom: 4px;
-}
-
-.cocktail-card .cocktail-menu-wording {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 14px;
-  line-height: 1.4;
-}
-
-.cocktail-card .cocktail-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.cocktail-card .price {
-  font-family: 'Playfair Display', serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--petrol);
-}
-
-.cocktail-card .margin-pill {
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-.cocktail-card .margin-pill.good {
-  background: rgba(46, 125, 91, 0.12);
-  color: var(--success);
-}
-
-.cocktail-card .margin-pill.warn {
-  background: rgba(201, 122, 46, 0.12);
-  color: var(--warning);
-}
-
-.cocktail-card .margin-pill.bad {
-  background: rgba(178, 58, 72, 0.12);
-  color: var(--danger);
-}
-
-/* ============ SEARCH / FILTER ============ */
-.search-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.search-bar input {
-  flex: 1;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  background: white;
-  font-family: inherit;
-  font-size: 14px;
-  border-radius: 2px;
-}
-.search-bar input:focus { outline: none; border-color: var(--cerise); }
-
-.filter-btn {
-  padding: 12px 16px;
-  background: white;
-  border: 1px solid var(--border);
-  font-family: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 2px;
-  color: var(--ink);
-}
-
-/* ============ COCKTAIL DETAIL ============ */
-.detail-view {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  margin: 0 -20px;
-  padding: 28px 24px;
-  border-left: none;
-  border-right: none;
-  border-top: 4px solid var(--cerise);
-}
-
-.back-btn {
-  background: none;
-  border: none;
-  color: var(--cerise);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 8px 0;
-  font-family: inherit;
-  margin-bottom: 16px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-weight: 500;
-}
-
-.detail-header {
-  text-align: center;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 24px;
-}
-
-.detail-header .cocktail-name-large {
-  font-family: 'Playfair Display', serif;
-  font-size: 34px;
-  font-weight: 700;
-  color: var(--cerise);
-  font-style: italic;
-  margin-bottom: 8px;
-  letter-spacing: 0.01em;
-}
-
-.detail-header .wording {
-  font-size: 13px;
-  color: var(--muted);
-  font-style: italic;
-  font-family: 'Playfair Display', serif;
-  letter-spacing: 0.03em;
-}
-
-.detail-section { margin-bottom: 24px; }
-
-.detail-section h3 {
-  font-size: 10px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--gold-dark);
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.detail-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.meta-item {
-  background: var(--off-white-dark);
-  padding: 12px 14px;
-  border-radius: 2px;
-}
-
-.meta-item .meta-label {
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 4px;
-  font-weight: 600;
-}
-
-.meta-item .meta-value {
-  font-size: 13px;
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.component-list {
-  background: var(--off-white-dark);
-  border-radius: 2px;
-  padding: 4px 0;
-}
-
-.component-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-
-.component-row:last-child { border-bottom: none; }
-
-.component-row .comp-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.component-row .comp-name .type-tag {
-  font-size: 9px;
-  padding: 2px 6px;
-  background: var(--petrol);
-  color: white;
-  border-radius: 2px;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-}
-
-.component-row .comp-name .type-tag.ing {
-  background: var(--gold);
-}
-
-.component-row .comp-qty {
-  font-family: 'Playfair Display', serif;
-  color: var(--cerise);
-  font-weight: 600;
-}
-
-.procedure-box {
-  background: var(--off-white-dark);
-  padding: 16px;
-  border-radius: 2px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--ink);
-  font-style: italic;
-}
-
-/* Cost breakdown */
-.cost-card {
-  background: linear-gradient(135deg, var(--petrol) 0%, var(--petrol-light) 100%);
-  color: white;
-  padding: 20px 22px;
-  border-radius: 4px;
-  margin-top: 16px;
-}
-
-.cost-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.cost-row .label { letter-spacing: 0.05em; }
-.cost-row .value {
-  font-family: 'Playfair Display', serif;
-  font-weight: 600;
-}
-
-.cost-row.total {
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  margin-top: 8px;
-  padding-top: 12px;
-  font-size: 16px;
-  color: white;
-}
-
-.cost-row.total .value { color: var(--gold); font-size: 20px; }
-
-.margin-display {
-  background: var(--gold);
-  color: var(--gold-dark);
-  text-align: center;
-  padding: 8px;
-  margin-top: 12px;
-  border-radius: 2px;
-  font-size: 12px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-/* ============ PREP VIEW ============ */
-.prep-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 16px 18px;
-  margin-bottom: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.prep-card:hover {
-  border-color: var(--cerise);
-  box-shadow: var(--shadow-sm);
-}
-
-.prep-card .prep-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
-}
-
-.prep-card .prep-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--petrol);
-}
-
-.prep-card .prep-type {
-  font-size: 9px;
-  padding: 3px 8px;
-  background: var(--cerise);
-  color: white;
-  border-radius: 2px;
-  letter-spacing: 0.15em;
-  font-weight: 600;
-}
-
-.prep-card .prep-yield {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-}
-
-/* Scaling input on prep detail */
-.scaling-controls {
-  background: var(--cerise);
-  color: white;
-  padding: 20px 22px;
-  border-radius: 4px;
-  margin: 20px 0;
-}
-
-.scaling-controls .scaling-label {
-  font-size: 10px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-  opacity: 0.85;
-}
-
-.scaling-controls .scaling-input-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.scaling-controls input[type=number] {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 10px 14px;
-  font-family: 'Playfair Display', serif;
-  font-size: 24px;
-  font-weight: 600;
-  width: 90px;
-  border-radius: 2px;
-  text-align: center;
-  -moz-appearance: textfield;
-}
-.scaling-controls input[type=number]::-webkit-outer-spin-button,
-.scaling-controls input[type=number]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.scaling-controls .scaling-unit {
-  font-size: 12px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  opacity: 0.85;
-}
-
-/* ============ INVENTORY ============ */
-.inventory-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.scan-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  background: var(--cerise);
-  color: white;
-  border: none;
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 2px;
-  white-space: nowrap;
-}
-
-.scan-btn.disabled {
-  background: var(--muted-light);
-  cursor: not-allowed;
-}
-
-.cat-pill {
-  padding: 8px 14px;
-  background: white;
-  border: 1px solid var(--border);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  border-radius: 14px;
-  cursor: pointer;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.cat-pill.active {
-  background: var(--petrol);
-  color: white;
-  border-color: var(--petrol);
-}
-
-.inv-row {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 14px 16px;
-  margin-bottom: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.inv-row .inv-info { flex: 1; }
-.inv-row .inv-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink);
-  margin-bottom: 2px;
-}
-
-.inv-row .inv-sub {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-}
-
-.inv-row .inv-price {
-  text-align: right;
-}
-
-.inv-row .inv-price .ppu {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--cerise);
-}
-
-.inv-row .inv-price .ppu-sub {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-}
-
-.inv-row.low-stock { border-left: 3px solid var(--warning); }
-.inv-row.no-price { border-left: 3px solid var(--danger); }
-
-/* ============ ORDERS / FORECAST ============ */
-.mode-toggle {
-  display: flex;
-  background: var(--off-white-dark);
-  border-radius: 2px;
-  padding: 4px;
-  margin-bottom: 20px;
-}
-
-.mode-toggle button {
-  flex: 1;
-  padding: 12px;
-  background: none;
-  border: none;
-  font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--muted);
-  border-radius: 2px;
-}
-
-.mode-toggle button.active {
-  background: var(--cerise);
-  color: white;
-}
-
-.forecast-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  margin-bottom: 8px;
-}
-
-.forecast-item .fi-info { flex: 1; }
-.forecast-item .fi-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--cerise);
-  font-style: italic;
-}
-
-.forecast-item .fi-price {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.forecast-item input[type=number] {
-  width: 60px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  font-family: 'Playfair Display', serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--cerise);
-  text-align: center;
-  border-radius: 2px;
-}
-
-.compute-btn {
-  width: 100%;
-  padding: 14px;
-  background: var(--cerise);
-  color: white;
-  border: none;
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 2px;
-  margin: 20px 0;
-}
-
-.order-output {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 20px;
-  margin-top: 16px;
-}
-
-.order-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.order-summary .summary-card {
-  text-align: center;
-}
-
-.order-summary .summary-val {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--cerise);
-}
-
-.order-summary .summary-lbl {
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.supplier-group { margin-bottom: 16px; }
-.supplier-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--petrol);
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
-  letter-spacing: 0.05em;
-}
-
-.order-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  padding: 6px 0;
-  color: var(--ink);
-}
-
-.order-line .ol-qty {
-  font-family: 'Playfair Display', serif;
-  color: var(--cerise);
-  font-weight: 600;
-}
-
-/* ============ GUEST SHIFT ============ */
-.guest-card {
-  background: white;
-  border: 1px solid var(--gold);
-  border-radius: 4px;
-  padding: 24px 22px;
-  margin-bottom: 16px;
-  position: relative;
-  page-break-inside: avoid;
-}
-
-.guest-card::before {
-  content: '';
-  position: absolute;
-  top: 8px; left: 8px;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--gold);
-  border-right: none;
-  border-bottom: none;
-}
-
-.guest-card .gc-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--cerise);
-  font-style: italic;
-  text-align: center;
-  margin-bottom: 4px;
-}
-
-.guest-card .gc-wording {
-  text-align: center;
-  font-size: 12px;
-  font-style: italic;
-  color: var(--muted);
-  font-family: 'Playfair Display', serif;
-  margin-bottom: 16px;
-  letter-spacing: 0.02em;
-}
-
-.guest-card .gc-flavour {
-  text-align: center;
-  font-size: 12px;
-  color: var(--ink);
-  padding: 12px 0;
-  border-top: 1px solid var(--gold);
-  border-bottom: 1px solid var(--gold);
-  margin-bottom: 14px;
-  line-height: 1.5;
-}
-
-.guest-card .gc-meta {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.guest-card .gc-meta-row {
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-}
-
-.guest-card .gc-meta-row .gcm-label {
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--gold-dark);
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.guest-card .gc-meta-row .gcm-val {
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.guest-card .gc-allergens {
-  font-size: 10px;
-  color: var(--muted);
-  font-style: italic;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
-  letter-spacing: 0.03em;
-}
-
-/* ============ BOTTOM NAV ============ */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-  background: var(--petrol);
-  display: flex;
-  border-top: 2px solid var(--gold);
-  z-index: 50;
-}
-
-@media (min-width: 768px) {
-  .bottom-nav { max-width: 600px; }
-}
-
-.bottom-nav button {
-  flex: 1;
-  padding: 12px 4px 14px;
-  background: none;
-  border: none;
-  color: var(--muted-light);
-  font-family: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.bottom-nav button.active {
-  color: var(--gold);
-}
-
-.bottom-nav button.active .nav-icon {
-  color: var(--gold);
-}
-
-.nav-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-
-/* Empty state for views */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--muted);
-}
-
-.empty-state .icon {
-  font-size: 48px;
-  color: var(--gold);
-  margin-bottom: 12px;
-}
-
-.empty-state .msg {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-style: italic;
-}
-
-/* Notice/info box */
-.notice {
-  background: rgba(183, 135, 59, 0.1);
-  border: 1px solid var(--gold);
-  padding: 12px 14px;
-  border-radius: 2px;
-  font-size: 12px;
-  color: var(--gold-dark);
-  margin-bottom: 16px;
-  letter-spacing: 0.02em;
-}
-
-/* Print */
-@media print {
-  .topbar, .bottom-nav, .back-btn { display: none; }
-  body, #app { background: white; box-shadow: none; }
-  .guest-card { break-inside: avoid; }
+:root{
+  --primary:#8A1538;
+  --primary-dark:#5E0E26;
+  --secondary:#043C57;
+  --accent:#B7873B;
+  --accent-dark:#573B08;
+  --background:#F7F1E7;
+  --paper:#FFFDF8;
+  --ink:#1A1A1A;
+  --ink-soft:#4A4140;
+  --ink-mute:#8A7E7B;
+  --line:rgba(26,26,26,.10);
+  --line-strong:rgba(26,26,26,.22);
+  --danger:#B0273C;
+  --warn:#A87413;
+  --ok:#2C6E3A;
+  --display-font:'Playfair Display',serif;
+  --body-font:'Inter',system-ui,sans-serif;
+  --radius:14px;
+  --shadow-1:0 1px 2px rgba(26,26,26,.06),0 2px 8px rgba(26,26,26,.04);
+  --shadow-2:0 4px 16px rgba(26,26,26,.10),0 1px 3px rgba(26,26,26,.06);
+  --header-h:56px;
+  --nav-h:64px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--background);color:var(--ink);font-family:var(--body-font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body{padding-top:var(--header-h);padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+a{color:var(--primary);text-decoration:none}
+
+/* ===== HEADER ===== */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--header-h);
+  background:var(--primary-dark);color:#fff;
+  display:flex;align-items:center;gap:10px;padding:0 14px;
+  z-index:50;
+  box-shadow:0 1px 0 rgba(0,0,0,.15),0 2px 8px rgba(0,0,0,.12);
+}
+.brand{font-family:var(--display-font);font-weight:700;font-size:22px;letter-spacing:.02em}
+.brand .dot{color:var(--accent);font-style:italic}
+.tenant-switch{
+  margin-left:auto;display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  padding:6px 10px;border-radius:999px;font-size:13px;color:#fff;
+  min-height:36px;
+}
+.tenant-switch select{background:transparent;color:#fff;border:none;font-weight:600;padding-right:4px}
+.tenant-switch select option{color:#000}
+.icon-btn{
+  width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.06);color:#fff;
+}
+.icon-btn:hover{background:rgba(255,255,255,.14)}
+
+/* ===== NAV ===== */
+.bottomnav{
+  position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  background:var(--paper);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(6,1fr);
+  padding-bottom:env(safe-area-inset-bottom);
+  z-index:50;
+}
+.nav-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-mute);font-weight:600;
+  min-height:44px;padding:6px 2px;
+}
+.nav-btn .ic{font-size:18px;line-height:1}
+.nav-btn.active{color:var(--primary)}
+.nav-btn.active .ic{color:var(--primary)}
+
+/* ===== LAYOUT ===== */
+.view{padding:18px 16px 24px}
+.section-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.section-hd h1{font-family:var(--display-font);font-weight:700;font-size:30px;margin:0;letter-spacing:-.01em;color:var(--ink)}
+.section-hd .sub{font-size:13px;color:var(--ink-mute);font-style:italic;font-family:var(--display-font)}
+.section-hd .rule{flex:1;height:1px;background:var(--line-strong);margin:0 8px}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-1);overflow:hidden}
+.card + .card{margin-top:12px}
+.card-hd{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card-hd h2{margin:0;font-family:var(--display-font);font-weight:700;font-size:20px}
+.card-bd{padding:14px 16px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .grow{flex:1;min-width:0}
+.row .grow .ttl{font-weight:600}
+.row .grow .sb{font-size:12px;color:var(--ink-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .right{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink-soft)}
+.row.click{cursor:pointer}
+.row.click:hover{background:rgba(138,21,56,.04)}
+
+/* ===== STAT TILES ===== */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px;
+  position:relative;overflow:hidden;
+}
+.stat .lab{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-mute);font-weight:600}
+.stat .num{font-family:var(--display-font);font-size:34px;font-weight:700;line-height:1.05;margin-top:4px;color:var(--primary)}
+.stat .num.s{color:var(--secondary)}
+.stat .num.a{color:var(--accent-dark)}
+
+/* ===== CHIPS / BADGES ===== */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;background:rgba(138,21,56,.08);color:var(--primary-dark)}
+.chip.s{background:rgba(4,60,87,.08);color:var(--secondary)}
+.chip.a{background:rgba(183,135,59,.12);color:var(--accent-dark)}
+.chip.warn{background:rgba(168,116,19,.12);color:var(--warn)}
+.chip.bad{background:rgba(176,39,60,.12);color:var(--danger)}
+.chip.ok{background:rgba(44,110,58,.12);color:var(--ok)}
+
+/* ===== FORM ===== */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-mute);font-weight:600}
+.input,select.input,textarea.input{
+  width:100%;background:var(--paper);border:1px solid var(--line-strong);border-radius:10px;
+  padding:11px 12px;min-height:44px;font-size:15px;color:var(--ink);
+  transition:border-color .15s, box-shadow .15s;
+}
+.input:focus,select.input:focus,textarea.input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(138,21,56,.15)}
+textarea.input{min-height:88px;resize:vertical}
+.search{
+  width:100%;background:var(--paper);border:1px solid var(--line-strong);border-radius:999px;padding:10px 14px;
+  min-height:42px;font-size:14px;margin-bottom:12px;
+}
+
+/* ===== BUTTONS ===== */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:11px 16px;min-height:44px;border-radius:10px;
+  font-weight:600;font-size:14px;letter-spacing:.02em;
+  background:var(--primary);color:#fff;border:1px solid var(--primary-dark);
+  transition:transform .08s, background .15s, box-shadow .15s;
+}
+.btn:hover{background:var(--primary-dark)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;color:var(--primary);border-color:var(--line-strong)}
+.btn.ghost:hover{background:rgba(138,21,56,.05)}
+.btn.sec{background:var(--secondary);border-color:#022a3d}
+.btn.sec:hover{background:#022a3d}
+.btn.acc{background:var(--accent);border-color:var(--accent-dark);color:#fff}
+.btn.acc:hover{background:var(--accent-dark)}
+.btn.danger{background:var(--danger);border-color:#7a1928}
+.btn.sm{padding:6px 10px;min-height:32px;font-size:12px;border-radius:8px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ===== TOAST ===== */
+.toasts{position:fixed;top:calc(var(--header-h) + 8px);left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;width:min(92%,420px)}
+.toast{
+  background:var(--ink);color:#fff;padding:12px 16px;border-radius:10px;font-size:14px;
+  box-shadow:var(--shadow-2);display:flex;gap:10px;align-items:center;
+  animation:tin .25s ease-out;
+}
+.toast.ok{background:var(--ok)}
+.toast.bad{background:var(--danger)}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* ===== MODAL ===== */
+.modal-bg{position:fixed;inset:0;background:rgba(26,26,26,.55);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fin .2s ease-out}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+.modal{
+  background:var(--paper);width:100%;max-width:560px;max-height:92vh;border-radius:18px 18px 0 0;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-2);
+  animation:min .25s ease-out;
+}
+@keyframes min{from{transform:translateY(20px)}to{transform:none}}
+@media(min-width:720px){
+  .modal-bg{align-items:center}
+  .modal{border-radius:18px}
+}
+.modal-hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--paper);position:sticky;top:0}
+.modal-hd h3{margin:0;font-family:var(--display-font);font-size:20px;font-weight:700;flex:1}
+.modal-bd{padding:16px 18px;overflow:auto;flex:1}
+.modal-ft{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:var(--paper)}
+
+/* ===== SETUP / LOGIN ===== */
+.center-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,var(--background) 0%,#EEE3D2 100%)}
+.center-card{width:100%;max-width:420px;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-2);padding:28px 24px}
+.center-card h1{font-family:var(--display-font);font-size:36px;font-weight:700;margin:0 0 4px;color:var(--primary)}
+.center-card h1 .dot{color:var(--accent);font-style:italic}
+.center-card .tag{font-size:13px;color:var(--ink-mute);font-style:italic;font-family:var(--display-font);margin-bottom:24px}
+.center-card .err{background:rgba(176,39,60,.08);color:var(--danger);padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.center-card .help{font-size:12px;color:var(--ink-mute);line-height:1.5;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.center-card code{background:rgba(26,26,26,.06);padding:1px 5px;border-radius:4px;font-size:12px}
+
+/* ===== COCKTAIL / PREP DETALJER ===== */
+.cocktail-hero{
+  background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);
+  color:#fff;padding:22px 18px;border-radius:var(--radius);margin-bottom:14px;
+  position:relative;overflow:hidden;
+}
+.cocktail-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 20%,rgba(183,135,59,.30),transparent 50%);pointer-events:none}
+.cocktail-hero h2{font-family:var(--display-font);font-size:32px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em}
+.cocktail-hero .menu{font-style:italic;font-family:var(--display-font);font-size:15px;opacity:.92;line-height:1.4}
+.cocktail-hero .meta{margin-top:14px;display:flex;gap:14px;font-size:12px;opacity:.88}
+.cocktail-hero .meta b{color:var(--accent);display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:2px}
+
+.kv{display:grid;grid-template-columns:110px 1fr;gap:8px 12px;font-size:14px}
+.kv dt{color:var(--ink-mute);font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding-top:3px}
+.kv dd{margin:0;color:var(--ink)}
+
+.cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cost-tile{background:rgba(138,21,56,.04);border:1px solid var(--line);border-radius:10px;padding:12px}
+.cost-tile .lab{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-mute);font-weight:600}
+.cost-tile .val{font-family:var(--display-font);font-size:22px;font-weight:700;margin-top:2px}
+.cost-tile.warn{background:rgba(168,116,19,.08);border-color:rgba(168,116,19,.30)}
+.cost-tile.bad{background:rgba(176,39,60,.08);border-color:rgba(176,39,60,.30)}
+.cost-tile.ok{background:rgba(44,110,58,.06);border-color:rgba(44,110,58,.25)}
+
+/* Tabel-vise inventory */
+.inv-row{display:grid;grid-template-columns:1fr auto;gap:6px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}
+.inv-row .name{font-weight:600}
+.inv-row .meta{font-size:11px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:.05em}
+.inv-row .stock{font-variant-numeric:tabular-nums;text-align:right;font-weight:600}
+.inv-row .stock.low{color:var(--danger)}
+.inv-row .stock.ok{color:var(--ok)}
+
+/* ===== EMPTY ===== */
+.empty{text-align:center;padding:48px 20px;color:var(--ink-mute)}
+.empty .big{font-family:var(--display-font);font-size:22px;color:var(--ink);margin-bottom:6px}
+
+/* ===== LOADING ===== */
+.spinner{
+  width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--primary);
+  border-radius:50%;animation:spin .8s linear infinite;margin:30px auto;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== GUEST SHIFT ===== */
+.gs-cocktail{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;margin-bottom:12px;page-break-inside:avoid;
+}
+.gs-cocktail h3{font-family:var(--display-font);font-size:22px;font-weight:700;margin:0 0 4px;color:var(--primary)}
+.gs-cocktail .gs-menu{font-style:italic;font-family:var(--display-font);font-size:14px;color:var(--ink-soft);margin-bottom:10px}
+.gs-cocktail .gs-flavour{font-size:13px;color:var(--ink-soft);margin-bottom:10px;line-height:1.5}
+.gs-cocktail .gs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 14px;font-size:12px}
+.gs-cocktail .gs-grid b{color:var(--ink-mute);text-transform:uppercase;letter-spacing:.06em;font-size:10px;font-weight:600;display:block}
+.gs-cocktail .gs-allerg{margin-top:10px;font-size:11px;color:var(--ink-mute);font-style:italic;border-top:1px solid var(--line);padding-top:8px}
+
+/* ===== PRINT ===== */
+@media print{
+  .topbar,.bottomnav,.no-print{display:none !important}
+  body{background:#fff;padding:0;color:#000}
+  .card,.gs-cocktail{box-shadow:none;border:1px solid #ccc;break-inside:avoid}
+  .view{padding:0}
+  @page{margin:14mm}
 }
 </style>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
-<div id="login">
-  <div class="login-card">
-    <div class="brand">Razzia</div>
-    <div class="tagline">Cocktail Index</div>
-    <div class="divider"></div>
-    <div class="input-group">
-      <label>Email</label>
-      <input type="email" id="email" value="bartender@razzia.dk">
-    </div>
-    <div class="input-group">
-      <label>Adgangskode</label>
-      <input type="password" id="password" value="••••••••">
-    </div>
-    <button class="btn-primary" onclick="login()">Log ind</button>
-    <div class="login-role-info">
-      Mockup: vælg rolle — 
-      <strong onclick="setRole('bartender')" style="cursor:pointer">Bartender</strong> | 
-      <strong onclick="setRole('admin')" style="cursor:pointer">Admin</strong>
-    </div>
-  </div>
-</div>
+<!-- Toast container -->
+<div class="toasts" id="toasts"></div>
 
-<!-- ============ APP ============ -->
-<div id="app">
+<!-- Root -->
+<div id="app"></div>
 
-  <!-- Top bar -->
-  <div class="topbar">
-    <div class="brand-small">Razzia<span>.</span></div>
-    <div class="user-badge">
-      <span id="userName">Marc</span>
-      <span class="role-pill" id="userRole">ADMIN</span>
-      <button class="logout-btn" onclick="logout()">⏻</button>
-    </div>
-  </div>
-
-  <div class="content">
-    <!-- ============ INDEX VIEW ============ -->
-    <div class="view active" id="view-index">
-      <div class="page-header">
-        <div class="eyebrow">Razzia</div>
-        <h1>Index</h1>
-        <div class="divider"></div>
-        <div class="subtitle">Velkommen tilbage</div>
-      </div>
-
-      <div class="index-grid">
-        <div class="stat-card">
-          <div class="number">8</div>
-          <div class="label">Cocktails</div>
-        </div>
-        <div class="stat-card">
-          <div class="number">12</div>
-          <div class="label">Preps</div>
-        </div>
-        <div class="stat-card">
-          <div class="number">60</div>
-          <div class="label">Råvarer</div>
-        </div>
-        <div class="stat-card">
-          <div class="number">78%</div>
-          <div class="label">Avg. Margin</div>
-        </div>
-      </div>
-
-      <div class="section-title">Alarmer <span class="count">3</span></div>
-
-      <div class="alert-box danger">
-        <div class="alert-title">⚠ Lavt lager: Mezcal</div>
-        <div class="alert-meta">120 ml tilbage · min. 900 ml</div>
-      </div>
-      <div class="alert-box">
-        <div class="alert-title">⚠ Lavt lager: Bergamota Puree</div>
-        <div class="alert-meta">200 ml tilbage · min. 750 ml</div>
-      </div>
-      <div class="alert-box success">
-        <div class="alert-title">✓ Alle priser opdateret</div>
-        <div class="alert-meta">Sidste opdatering: i går</div>
-      </div>
-    </div>
-
-    <!-- ============ COCKTAILS LIST ============ -->
-    <div class="view" id="view-cocktails">
-      <div class="page-header">
-        <div class="eyebrow">À la Carte</div>
-        <h1>Cocktails</h1>
-        <div class="divider"></div>
-        <div class="subtitle">Signature creations</div>
-      </div>
-
-      <div class="search-bar">
-        <input type="text" placeholder="Søg cocktails...">
-        <button class="filter-btn">Filter</button>
-      </div>
-
-      <div id="cocktail-list"></div>
-    </div>
-
-    <!-- ============ COCKTAIL DETAIL ============ -->
-    <div class="view" id="view-cocktail-detail">
-      <button class="back-btn" onclick="showView('cocktails')">← Tilbage</button>
-      <div id="cocktail-detail-content"></div>
-    </div>
-
-    <!-- ============ PREP LIST ============ -->
-    <div class="view" id="view-prep">
-      <div class="page-header">
-        <div class="eyebrow">Production</div>
-        <h1>Prep</h1>
-        <div class="divider"></div>
-        <div class="subtitle">Weekly & daily batches</div>
-      </div>
-
-      <div class="search-bar">
-        <input type="text" placeholder="Søg preps...">
-      </div>
-
-      <div id="prep-list"></div>
-    </div>
-
-    <!-- ============ PREP DETAIL ============ -->
-    <div class="view" id="view-prep-detail">
-      <button class="back-btn" onclick="showView('prep')">← Tilbage</button>
-      <div id="prep-detail-content"></div>
-    </div>
-
-    <!-- ============ INVENTORY ============ -->
-    <div class="view" id="view-inventory">
-      <div class="page-header">
-        <div class="eyebrow">Suppliers & Pricing</div>
-        <h1>Inventory</h1>
-        <div class="divider"></div>
-        <div class="subtitle">Råvarer & priser</div>
-      </div>
-
-      <div class="inventory-controls">
-        <button class="scan-btn" onclick="alert('Stregkodescanning kræver HTTPS og kamera. Kommer i den fulde app.')">
-          📷 Scan
-        </button>
-        <button class="scan-btn disabled">
-          ⊘ Foto
-        </button>
-        <button class="cat-pill active">Alle</button>
-        <button class="cat-pill">Spirit</button>
-        <button class="cat-pill">Purées</button>
-        <button class="cat-pill">Fruit</button>
-        <button class="cat-pill">Garnish</button>
-      </div>
-
-      <div class="search-bar">
-        <input type="text" placeholder="Søg råvarer...">
-      </div>
-
-      <div id="inventory-list"></div>
-    </div>
-
-    <!-- ============ ORDERS ============ -->
-    <div class="view" id="view-orders">
-      <div class="page-header">
-        <div class="eyebrow">Forecast</div>
-        <h1>Orders</h1>
-        <div class="divider"></div>
-        <div class="subtitle">Bestillingsliste</div>
-      </div>
-
-      <div class="mode-toggle">
-        <button class="active">Forecast</button>
-        <button>Lager</button>
-      </div>
-
-      <div class="notice">
-        Vælg cocktails til en event og angiv antal — app'en beregner total råvareforbrug og bestillingsliste.
-      </div>
-
-      <div id="forecast-inputs"></div>
-
-      <button class="compute-btn" onclick="computeForecast()">Beregn bestilling</button>
-
-      <div class="order-output" id="forecast-output" style="display:none">
-        <div class="order-summary">
-          <div class="summary-card">
-            <div class="summary-val" id="fc-drinks">0</div>
-            <div class="summary-lbl">Drinks</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-val" id="fc-cost">0 kr</div>
-            <div class="summary-lbl">Kostpris</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-val" id="fc-revenue">0 kr</div>
-            <div class="summary-lbl">Omsætning</div>
-          </div>
-        </div>
-        <div id="fc-suppliers"></div>
-      </div>
-    </div>
-
-    <!-- ============ GUEST SHIFT ============ -->
-    <div class="view" id="view-guest">
-      <div class="page-header">
-        <div class="eyebrow">Service</div>
-        <h1>Guest Shift</h1>
-        <div class="divider"></div>
-        <div class="subtitle">Pre-shift briefing</div>
-      </div>
-
-      <div class="notice">
-        Auto-genereret oversigt af aktive cocktails — print eller læs på telefon før service.
-      </div>
-
-      <div id="guest-list"></div>
-    </div>
-
-  </div>
-
-  <!-- Bottom nav -->
-  <nav class="bottom-nav">
-    <button class="active" data-view="index"><span class="nav-icon">⌂</span>Index</button>
-    <button data-view="cocktails"><span class="nav-icon">◈</span>Cocktails</button>
-    <button data-view="prep"><span class="nav-icon">◊</span>Prep</button>
-    <button data-view="inventory"><span class="nav-icon">▦</span>Lager</button>
-    <button data-view="orders"><span class="nav-icon">▤</span>Orders</button>
-    <button data-view="guest"><span class="nav-icon">★</span>Guest</button>
-  </nav>
-
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ============ SEED DATA (subset of full razzia_seed.json) ============
-const DATA = {
-  ingredients: [
-    {id:"ing_001",name:"Vodka",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:180,supplier:"Hans Just",current_stock:1400,min_stock:700},
-    {id:"ing_002",name:"Gin MG Paradiso",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:320,supplier:"Hans Just",current_stock:700,min_stock:700},
-    {id:"ing_003",name:"Pisco",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:240,supplier:"Vinmonopolet",current_stock:1400,min_stock:900},
-    {id:"ing_004",name:"Tequila Blanco",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:280,supplier:"Hans Just",current_stock:1400,min_stock:900},
-    {id:"ing_005",name:"Mezcal",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:420,supplier:"Hans Just",current_stock:120,min_stock:900},
-    {id:"ing_006",name:"Bourbon",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:260,supplier:"Hans Just",current_stock:1400,min_stock:900},
-    {id:"ing_007",name:"Rum",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:220,supplier:"Hans Just",current_stock:1400,min_stock:1200},
-    {id:"ing_009",name:"Cointreau",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:280,supplier:"Hans Just",current_stock:700,min_stock:450},
-    {id:"ing_010",name:"Aperol",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:180,supplier:"Hans Just",current_stock:700,min_stock:300},
-    {id:"ing_011",name:"Campari",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:210,supplier:"Hans Just",current_stock:700,min_stock:400},
-    {id:"ing_012",name:"Cynar",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:240,supplier:"Hans Just",current_stock:700,min_stock:520},
-    {id:"ing_013",name:"Fernet Branca Menta",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:260,supplier:"Hans Just",current_stock:700,min_stock:300},
-    {id:"ing_014",name:"Paradiso White Truffle Amaro",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:480,supplier:"Speciality Drinks",current_stock:700,min_stock:600},
-    {id:"ing_015",name:"Cacao EspiritRoca Liqueur",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:340,supplier:"Speciality Drinks",current_stock:700,min_stock:300},
-    {id:"ing_016",name:"Rose Liqueur",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:260,supplier:"Speciality Drinks",current_stock:700,min_stock:150},
-    {id:"ing_017",name:"Peach Liqueur",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:220,supplier:"Hans Just",current_stock:700,min_stock:150},
-    {id:"ing_018",name:"Yuzu Liqueur",category:"SPIRIT",purchase_size:700,purchase_unit:"ml",purchase_price_dkk:340,supplier:"Speciality Drinks",current_stock:700,min_stock:300},
-    {id:"ing_021",name:"Dry Vermouth",category:"SPIRIT",purchase_size:750,purchase_unit:"ml",purchase_price_dkk:95,supplier:"Hans Just",current_stock:750,min_stock:300},
-    {id:"ing_022",name:"Fino Sherry",category:"FORTIFIED WINES",purchase_size:750,purchase_unit:"ml",purchase_price_dkk:140,supplier:"Hans Just",current_stock:1500,min_stock:600},
-    {id:"ing_023",name:"Pedro Ximénez",category:"FORTIFIED WINES",purchase_size:750,purchase_unit:"ml",purchase_price_dkk:220,supplier:"Hans Just",current_stock:750,min_stock:225},
-    {id:"ing_024",name:"Prosecco",category:"FORTIFIED WINES",purchase_size:750,purchase_unit:"ml",purchase_price_dkk:110,supplier:"Hans Just",current_stock:2250,min_stock:1800},
-    {id:"ing_025",name:"Sakura Vermouth",category:"FORTIFIED WINES",purchase_size:750,purchase_unit:"ml",purchase_price_dkk:260,supplier:"Speciality Drinks",current_stock:1500,min_stock:1042},
-    {id:"ing_026",name:"White Wine",category:"FORTIFIED WINES",purchase_size:750,purchase_unit:"ml",purchase_price_dkk:95,supplier:"Hans Just",current_stock:1500,min_stock:300},
-    {id:"ing_027",name:"Bergamota Puree",category:"PURÉES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:180,supplier:"Boiron",current_stock:200,min_stock:750},
-    {id:"ing_028",name:"Cherry Purée",category:"PURÉES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:145,supplier:"Boiron",current_stock:1000,min_stock:405},
-    {id:"ing_029",name:"Lychee Purée",category:"PURÉES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:165,supplier:"Boiron",current_stock:2000,min_stock:1200},
-    {id:"ing_030",name:"Mango Puree",category:"PURÉES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:130,supplier:"Boiron",current_stock:2000,min_stock:1200},
-    {id:"ing_031",name:"Peach Puree",category:"PURÉES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:130,supplier:"Boiron",current_stock:1000,min_stock:300},
-    {id:"ing_032",name:"Watermelon Purée",category:"PURÉES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:120,supplier:"Boiron",current_stock:2000,min_stock:1200},
-    {id:"ing_033",name:"Banana Peels",category:"FRUIT & VEGETABLES",purchase_size:1000,purchase_unit:"gr",purchase_price_dkk:25,supplier:"Grønttorvet",current_stock:1000,min_stock:800},
-    {id:"ing_034",name:"Fresh Citrus Juice",category:"FRUIT & VEGETABLES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:60,supplier:"Grønttorvet",current_stock:2000,min_stock:1050},
-    {id:"ing_035",name:"Fresh Lime Juice",category:"FRUIT & VEGETABLES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:90,supplier:"Grønttorvet",current_stock:2000,min_stock:900},
-    {id:"ing_037",name:"Coconut Milk",category:"DAIRY & ALTERNATIVES",purchase_size:400,purchase_unit:"ml",purchase_price_dkk:18,supplier:"Bevco",current_stock:1600,min_stock:900},
-    {id:"ing_038",name:"Whole Milk",category:"DAIRY & ALTERNATIVES",purchase_size:1000,purchase_unit:"ml",purchase_price_dkk:14,supplier:"Arla",current_stock:2000,min_stock:900},
-    {id:"ing_039",name:"Agave Honey",category:"SWEETENER",purchase_size:500,purchase_unit:"ml",purchase_price_dkk:65,supplier:"Bevco",current_stock:1000,min_stock:540},
-    {id:"ing_040",name:"Sugar",category:"SWEETENER",purchase_size:1000,purchase_unit:"gr",purchase_price_dkk:18,supplier:"Dagrofa",current_stock:5000,min_stock:2255},
-    {id:"ing_042",name:"Rice Vinegar",category:"ACIDS & MODIFIERS",purchase_size:500,purchase_unit:"ml",purchase_price_dkk:45,supplier:"Asia Mart",current_stock:500,min_stock:116},
-    {id:"ing_043",name:"Verjus",category:"ACIDS & MODIFIERS",purchase_size:500,purchase_unit:"ml",purchase_price_dkk:95,supplier:"Speciality Drinks",current_stock:500,min_stock:116},
-    {id:"ing_045",name:"Vanilla Bean",category:"AROMATICS",purchase_size:1,purchase_unit:"Unit",purchase_price_dkk:25,supplier:"Speciality Drinks",current_stock:20,min_stock:6},
-    {id:"ing_047",name:"Peychaud's Bitters",category:"BITTERS",purchase_size:150,purchase_unit:"ml",purchase_price_dkk:110,supplier:"Hans Just",current_stock:300,min_stock:60},
-    {id:"ing_048",name:"Green Tabasco",category:"CONDIMENT",purchase_size:60,purchase_unit:"ml",purchase_price_dkk:35,supplier:"Dagrofa",current_stock:120,min_stock:60},
-    {id:"ing_049",name:"Salt",category:"CONDIMENT",purchase_size:1000,purchase_unit:"gr",purchase_price_dkk:12,supplier:"Dagrofa",current_stock:1000,min_stock:89},
-    {id:"ing_050",name:"Pectinase",category:"PROCESSING AIDS",purchase_size:100,purchase_unit:"gr",purchase_price_dkk:220,supplier:"Speciality Drinks",current_stock:200,min_stock:90},
-  ],
-  preps: [
-    {id:"prep_001",name:"PREMIX VENICE",type:"PREMIX",yield_quantity:600,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Vodka",quantity:300,unit:"ml"},
-      {ingredient_name:"Rose Liqueur",quantity:150,unit:"ml"},
-      {ingredient_name:"Peach Liqueur",quantity:150,unit:"ml"}
-    ],procedure:"Blend all ingredients until fully combined, then reserve.",shelf_life:"Months to years sealed."},
-    {id:"prep_002",name:"PREMIX VODKA LEMON",type:"INFUSION",yield_quantity:1200,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Vodka",quantity:1200,unit:"ml"}
-    ],procedure:"Peel the lemons and infuse the peels in the vodka overnight in vacuum bag in the freezer. Strain and reserve.",shelf_life:"Months sealed."},
-    {id:"prep_003",name:"VANILLA SYRUP",type:"SYRUP",yield_quantity:1500,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Sugar",quantity:750,unit:"gr"},
-      {ingredient_name:"Vanilla Bean",quantity:3.75,unit:"Unit"}
-    ],procedure:"Split the vanilla bean and scrape the seeds, then combine with the water, sugar, and pod in a saucepan. Heat gently until dissolved.",shelf_life:"2–3 weeks refrigerated."},
-    {id:"prep_004",name:"BATCH PREMIÉRE",type:"BATCH",yield_quantity:1950,yield_unit:"ml",ingredients:[
-      {prep_name:"PREMIX VODKA LEMON",quantity:1200,unit:"ml"},
-      {ingredient_name:"Cointreau",quantity:450,unit:"ml"},
-      {prep_name:"VANILLA SYRUP",quantity:300,unit:"ml"}
-    ],procedure:"Blend all ingredients until fully combined, then reserve.",shelf_life:"5–7 days refrigerated."},
-    {id:"prep_006",name:"PREMIX BARDOT",type:"BATCH",yield_quantity:4950,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Pisco",quantity:900,unit:"ml"},
-      {ingredient_name:"Aperol",quantity:300,unit:"ml"},
-      {ingredient_name:"White Wine",quantity:300,unit:"ml"},
-      {ingredient_name:"Yuzu Liqueur",quantity:300,unit:"ml"},
-      {ingredient_name:"Mango Puree",quantity:1200,unit:"ml"},
-      {ingredient_name:"Salt",quantity:9,unit:"gr"},
-      {ingredient_name:"Fresh Citrus Juice",quantity:450,unit:"ml"},
-      {ingredient_name:"Coconut Milk",quantity:900,unit:"ml"}
-    ],procedure:"Combine all ingredients except milk. Gently heat milk to 40°C. Pour mixture into warm milk. Rest overnight refrigerated. Strain through coffee filter until clear.",shelf_life:"2-3 days refrigerated once gasified."},
-    {id:"prep_007",name:"PREMIX MARGOT",type:"PREMIX",yield_quantity:2400,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Tequila Blanco",quantity:900,unit:"ml"},
-      {ingredient_name:"Mezcal",quantity:900,unit:"ml"},
-      {ingredient_name:"Fino Sherry",quantity:600,unit:"ml"},
-      {ingredient_name:"Green Tabasco",quantity:60,unit:"Dashes"}
-    ],procedure:"Combine all ingredients and reserve in vacuum bags or directly in clear bottles.",shelf_life:"Months sealed."},
-    {id:"prep_008",name:"BATCH LA PLAISIR",type:"BATCH",yield_quantity:5125,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Bourbon",quantity:900,unit:"ml"},
-      {ingredient_name:"Pedro Ximénez",quantity:225,unit:"ml"},
-      {prep_name:"VANILLA SYRUP",quantity:300,unit:"ml"},
-      {ingredient_name:"Fresh Citrus Juice",quantity:600,unit:"ml"},
-      {ingredient_name:"Watermelon Purée",quantity:1200,unit:"ml"},
-      {ingredient_name:"Lychee Purée",quantity:1200,unit:"ml"},
-      {ingredient_name:"Whole Milk",quantity:900,unit:"ml"},
-      {ingredient_name:"Peychaud's Bitters",quantity:60,unit:"Dashes"}
-    ],procedure:"Combine all ingredients except milk. Gently heat milk to 40°C. Pour mixture into warm milk. Rest overnight refrigerated.",shelf_life:"1 week refrigerated."},
-    {id:"prep_010",name:"BATCH BELLE",type:"BATCH",yield_quantity:2550,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Rum",quantity:1200,unit:"ml"},
-      {ingredient_name:"Paradiso White Truffle Amaro",quantity:600,unit:"ml"},
-      {ingredient_name:"Fernet Branca Menta",quantity:300,unit:"ml"},
-      {ingredient_name:"Cacao EspiritRoca Liqueur",quantity:300,unit:"ml"},
-      {ingredient_name:"Agave Honey",quantity:150,unit:"ml"}
-    ],procedure:"Blend all ingredients until fully combined, rest for 30 minutes, strain through cheesecloth until clear.",shelf_life:"1 week refrigerated."},
-    {id:"prep_011",name:"SIMPLE SYRUP",type:"SYRUP",yield_quantity:800,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Sugar",quantity:405,unit:"gr"}
-    ],procedure:"Combine sugar and water 1:1. Heat gently, stir until dissolved. Do not boil.",shelf_life:"2–3 weeks refrigerated."},
-    {id:"prep_012",name:"BATCH VELVET",type:"BATCH",yield_quantity:3000,yield_unit:"ml",ingredients:[
-      {ingredient_name:"Rice Vinegar",quantity:116,unit:"ml"},
-      {ingredient_name:"Verjus",quantity:116,unit:"ml"},
-      {prep_name:"SIMPLE SYRUP",quantity:405,unit:"ml"},
-      {ingredient_name:"Cherry Purée",quantity:405,unit:"ml"},
-      {ingredient_name:"Vanilla Bean",quantity:0.58,unit:"Unit"},
-      {ingredient_name:"Pectinase",quantity:90,unit:"gr"},
-      {ingredient_name:"Sakura Vermouth",quantity:1042,unit:"ml"},
-      {ingredient_name:"Cynar",quantity:521,unit:"ml"},
-      {ingredient_name:"Campari",quantity:394,unit:"ml"}
-    ],procedure:"Blend all ingredients with handblender, rest 2 hours, strain through cheesecloth.",shelf_life:"1 week refrigerated."}
-  ],
-  cocktails: [
-    {id:"cock_001",name:"Venice en Rose",menu_wording:"Vodka, Rose, Peach, Prosecco",flavour_profile:"Floral, fruity, and elegant, with a light sparkle.",allergens:"sulphites; peach; rose; grape derivatives",glassware:"Pompadour glass",ice:"N/A",garnish:"Mini Rose / Rose Petal",tools:"Shaker",procedure:"Add the Premix Venice and peach purée to a shaker. Shake & double strain. Top with sparkling wine. Stir gently.",alcohol_percent:11.0,sell_price_dkk:165,components:[
-      {prep_name:"PREMIX VENICE",quantity:20,unit:"ml"},
-      {ingredient_name:"Peach Puree",quantity:30,unit:"ml"},
-      {ingredient_name:"Prosecco",quantity:60,unit:"ml"}
-    ]},
-    {id:"cock_002",name:"La Première",menu_wording:"Vodka infused with lemon peels, Cointreau, bergamot, vanilla",flavour_profile:"Citrusy, aromatic, and silky, with fresh notes of lemon and bergamot balanced by vanilla.",allergens:"sulphites; citrus; orange; lemon; bergamot; vanilla",glassware:"Nick & Nora",ice:"N/A",garnish:"Leaves (Seasonal)",tools:"Shaker",procedure:"Shake vigorously with ice, double strain into chilled Nick & Nora.",alcohol_percent:22.0,sell_price_dkk:165,components:[
-      {prep_name:"BATCH PREMIÉRE",quantity:65,unit:"ml"},
-      {ingredient_name:"Bergamota Puree",quantity:25,unit:"ml"}
-    ]},
-    {id:"cock_003",name:"Brigitte Bardot",menu_wording:"Pisco, Aperol, White Wine, Yuzu, Mango, Banana, Citrus, Coconut, Salt",flavour_profile:"Bright, tropical, and citrus-driven, with stone fruit sweetness and silky coconut finish.",allergens:"sulphites; coconut; citrus; mango; banana",glassware:"Highball",ice:"4x4x10",garnish:"Yuzu Juice Pearls",tools:"Gasified",procedure:"Serve gasified Premix Bardot in highball over 4x4x10 ice. Garnish.",alcohol_percent:12.0,sell_price_dkk:175,components:[
-      {prep_name:"PREMIX BARDOT",quantity:165,unit:"ml"}
-    ]},
-    {id:"cock_004",name:"Margot",menu_wording:"Mezcal, Tequila Blanco, Fino Sherry, Agave Honey, Lime Juice, Green Tabasco",flavour_profile:"Smoky, bright, and savoury with agave sweetness, crisp lime acidity, and subtle spicy kick.",allergens:"sulphites; agave; lime; capsicum",glassware:"Old Fashioned (285ml)",ice:"5x5x7",garnish:"Burnt Green Pepper, Edible Flower",tools:"Shaker",procedure:"Shake vigorously with ice, double strain into rocks glass over 5x5x7 ice.",alcohol_percent:28.0,sell_price_dkk:175,components:[
-      {prep_name:"PREMIX MARGOT",quantity:80,unit:"ml"},
-      {ingredient_name:"Agave Honey",quantity:15,unit:"ml"},
-      {ingredient_name:"Fresh Lime Juice",quantity:30,unit:"ml"}
-    ]},
-    {id:"cock_005",name:"La Plaisir",menu_wording:"Bourbon, Watermelon, Lemon, Vanilla, Grape, Tea",flavour_profile:"Smooth watermelon freshness, layered dark fruit and tea notes, gentle vanilla sweetness.",allergens:"sulphites; citrus; watermelon; vanilla; tea",glassware:"Old Fashioned (285ml)",ice:"5x5x7",garnish:"Chocolate by Felicia Ludwig",tools:"None",procedure:"Serve batch directly in glass over 5x5x7 ice.",alcohol_percent:18.0,sell_price_dkk:175,components:[
-      {prep_name:"BATCH LA PLAISIR",quantity:120,unit:"ml"}
-    ]},
-    {id:"cock_006",name:"Belle Époque",menu_wording:"Rum, Paradiso White Truffle Amaro, Fernet Branca Menta, Cacao EspiritRoca",flavour_profile:"Rich and complex, with deep warmth, earthy truffle bitterness, mint, and dark cacao sweetness.",allergens:"sulphites; cacao; mint; agave",glassware:"Old Fashioned (285ml)",ice:"5x5x7",garnish:"Chocolate Truffle, Orange twist",tools:"Smoking gun",procedure:"Stir with ice, strain into rocks glass over 5x5x7 ice. Smoke with tobacco of chocolate & vanilla.",alcohol_percent:32.0,sell_price_dkk:195,components:[
-      {prep_name:"BATCH BELLE",quantity:100,unit:"ml"}
-    ]},
-    {id:"cock_007",name:"Velvet Negroni",menu_wording:"Cynar, Sakura Vermouth, Campari, Cherry & Vanilla Shrub",flavour_profile:"Bitter and floral, with herbal depth, cherry sweetness, and soft vanilla warmth.",allergens:"sulphites; cherry; vanilla; botanicals; citrus",glassware:"Old Fashioned (285ml)",ice:"5x5x7",garnish:"Chocolate by Felicia Ludwig",tools:"None",procedure:"Serve batch directly in glass over 5x5x7 ice.",alcohol_percent:24.0,sell_price_dkk:175,components:[
-      {prep_name:"BATCH VELVET",quantity:100,unit:"ml"}
-    ]},
-    {id:"cock_008",name:"Pearl Martini",menu_wording:"Gin MG Paradiso, Dry Vermouth",flavour_profile:"Classic, dry, crisp.",allergens:"sulphites; botanicals",glassware:"Martini glass",ice:"N/A",garnish:"Lemon peel",tools:"Mixing glass",procedure:"Stir with ice in mixing glass. Strain into chilled martini glass.",alcohol_percent:32.0,sell_price_dkk:155,components:[
-      {ingredient_name:"Gin MG Paradiso",quantity:100,unit:"ml"},
-      {ingredient_name:"Dry Vermouth",quantity:20,unit:"ml"}
-    ]}
-  ]
+// ============================================================================
+// BACKBAR — single-file app
+// ============================================================================
+
+const SUPABASE_CONFIG = {
+  url: 'https://YOUR-PROJECT.supabase.co',
+  anonKey: 'YOUR-ANON-KEY-HERE'
 };
 
-// Build lookup maps
-const ingredientByName = Object.fromEntries(DATA.ingredients.map(i => [i.name, i]));
-const prepByName = Object.fromEntries(DATA.preps.map(p => [p.name, p]));
+// ---- state ----
+const state = {
+  sb: null,
+  user: null,
+  tenants: [],          // tenants user is member of, with role
+  activeTenantId: null,
+  route: '#index',
+  data: {               // cached for active tenant
+    ingredients: [],
+    preps: [],
+    prep_components: [],
+    cocktails: [],
+    cocktail_components: [],
+  },
+  loading: false,
+  rtChannel: null,
+};
 
-// ============ COST CALCULATION (recursive) ============
-function pricePerUnit(ing) {
-  if (!ing.purchase_price_dkk || !ing.purchase_size) return 0;
-  return ing.purchase_price_dkk / ing.purchase_size;
-}
-
-function prepCostPerUnit(prep) {
-  let totalCost = 0;
-  for (const comp of prep.ingredients) {
-    if (comp.ingredient_name) {
-      const ing = ingredientByName[comp.ingredient_name];
-      if (ing) totalCost += pricePerUnit(ing) * comp.quantity;
-    } else if (comp.prep_name) {
-      const child = prepByName[comp.prep_name];
-      if (child) totalCost += prepCostPerUnit(child) * comp.quantity;
-    }
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const el = (tag, attrs={}, ...children) => {
+  const e = document.createElement(tag);
+  for (const k in attrs) {
+    if (k === 'class') e.className = attrs[k];
+    else if (k === 'html') e.innerHTML = attrs[k];
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else if (k === 'style' && typeof attrs[k] === 'object') Object.assign(e.style, attrs[k]);
+    else e.setAttribute(k, attrs[k]);
   }
-  return totalCost / prep.yield_quantity;
-}
-
-function cocktailCost(cocktail) {
-  let total = 0;
-  for (const comp of cocktail.components) {
-    if (comp.ingredient_name) {
-      const ing = ingredientByName[comp.ingredient_name];
-      if (ing) total += pricePerUnit(ing) * comp.quantity;
-    } else if (comp.prep_name) {
-      const prep = prepByName[comp.prep_name];
-      if (prep) total += prepCostPerUnit(prep) * comp.quantity;
-    }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
   }
-  return total;
+  return e;
+};
+
+const dkk = n => (n == null || isNaN(n)) ? '—' : new Intl.NumberFormat('da-DK',{style:'currency',currency:'DKK',maximumFractionDigits:2}).format(n);
+const num = (n, d=2) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('da-DK',{minimumFractionDigits:0,maximumFractionDigits:d});
+
+function toast(msg, kind='') {
+  const t = el('div', {class:'toast ' + kind}, msg);
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.remove(), 300); }, 2600);
 }
 
-function marginPct(c) {
-  const cost = cocktailCost(c);
-  if (!c.sell_price_dkk) return 0;
-  return ((c.sell_price_dkk - cost) / c.sell_price_dkk) * 100;
+function applyTheme(theme) {
+  if (!theme) return;
+  const r = document.documentElement;
+  if (theme.primary)        r.style.setProperty('--primary', theme.primary);
+  if (theme.primary_dark)   r.style.setProperty('--primary-dark', theme.primary_dark);
+  if (theme.secondary)      r.style.setProperty('--secondary', theme.secondary);
+  if (theme.accent)         r.style.setProperty('--accent', theme.accent);
+  if (theme.background)     r.style.setProperty('--background', theme.background);
+  if (theme.display_font)   r.style.setProperty('--display-font', `'${theme.display_font}', serif`);
+  if (theme.body_font)      r.style.setProperty('--body-font', `'${theme.body_font}', system-ui, sans-serif`);
+  document.body.style.background = 'var(--background)';
+  // Theme-color meta
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m && theme.primary_dark) m.content = theme.primary_dark;
 }
 
-// Flatten cocktail to raw ingredient usage (for forecast)
-function flattenIngredients(cocktail) {
-  const usage = {}; // ingredient_name -> ml/gr
-  function addPrep(prep, totalQty) {
-    const ratio = totalQty / prep.yield_quantity;
-    for (const comp of prep.ingredients) {
-      if (comp.ingredient_name) {
-        usage[comp.ingredient_name] = (usage[comp.ingredient_name] || 0) + comp.quantity * ratio;
-      } else if (comp.prep_name) {
-        const child = prepByName[comp.prep_name];
-        if (child) addPrep(child, comp.quantity * ratio);
+// ============================================================================
+// BOOT
+// ============================================================================
+async function boot() {
+  if (!SUPABASE_CONFIG.url || SUPABASE_CONFIG.url.includes('YOUR-PROJECT')) {
+    return renderSetup();
+  }
+  state.sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  state.sb.auth.onAuthStateChange((_evt, session) => {
+    state.user = session?.user || null;
+    if (!state.user) {
+      cleanupRealtime();
+      renderLogin();
+    }
+  });
+  const { data: { session } } = await state.sb.auth.getSession();
+  state.user = session?.user || null;
+  if (!state.user) return renderLogin();
+  await afterLogin();
+}
+
+async function afterLogin() {
+  await loadTenants();
+  if (state.tenants.length === 0) {
+    return renderNoTenant();
+  }
+  // Restore active tenant or pick first
+  const stored = localStorage.getItem('activeTenantId');
+  if (stored && state.tenants.some(t => t.id === stored)) {
+    state.activeTenantId = stored;
+  } else {
+    state.activeTenantId = state.tenants[0].id;
+    localStorage.setItem('activeTenantId', state.activeTenantId);
+  }
+  await switchTenant(state.activeTenantId);
+}
+
+async function loadTenants() {
+  // Get memberships + tenant
+  const { data, error } = await state.sb
+    .from('memberships')
+    .select('role, tenant_id, tenants(id, slug, name, city, theme, subscription_tier)')
+    .eq('user_id', state.user.id);
+  if (error) { toast('Could not load tenants: ' + error.message, 'bad'); return; }
+  state.tenants = (data || [])
+    .filter(m => m.tenants)
+    .map(m => ({ ...m.tenants, role: m.role }));
+}
+
+async function switchTenant(tid) {
+  state.activeTenantId = tid;
+  localStorage.setItem('activeTenantId', tid);
+  const t = state.tenants.find(x => x.id === tid);
+  applyTheme(t?.theme);
+  await loadAll();
+  setupRealtime();
+  renderApp();
+}
+
+function cleanupRealtime() {
+  if (state.rtChannel) {
+    state.sb.removeChannel(state.rtChannel);
+    state.rtChannel = null;
+  }
+}
+
+function setupRealtime() {
+  cleanupRealtime();
+  if (!state.activeTenantId) return;
+  state.rtChannel = state.sb
+    .channel('ingredients-' + state.activeTenantId)
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'ingredients', filter: `tenant_id=eq.${state.activeTenantId}` },
+      payload => {
+        const idx = state.data.ingredients.findIndex(i => i.id === payload.new.id);
+        if (idx >= 0) state.data.ingredients[idx] = payload.new;
+        if (location.hash === '#inventory' || location.hash === '#index' || location.hash === '#orders') {
+          renderRoute();
+        }
       }
+    )
+    .subscribe();
+}
+
+async function loadAll() {
+  state.loading = true;
+  const tid = state.activeTenantId;
+  const [ing, preps, pc, cocks, cc] = await Promise.all([
+    state.sb.from('ingredients').select('*').eq('tenant_id', tid).order('category').order('name'),
+    state.sb.from('preps').select('*').eq('tenant_id', tid).order('type').order('name'),
+    state.sb.from('prep_components').select('*').eq('tenant_id', tid),
+    state.sb.from('cocktails').select('*').eq('tenant_id', tid).order('name'),
+    state.sb.from('cocktail_components').select('*').eq('tenant_id', tid),
+  ]);
+  if (ing.error)   toast('Ingredients: ' + ing.error.message, 'bad');
+  if (preps.error) toast('Preps: ' + preps.error.message, 'bad');
+  state.data.ingredients         = ing.data || [];
+  state.data.preps               = preps.data || [];
+  state.data.prep_components     = pc.data || [];
+  state.data.cocktails           = cocks.data || [];
+  state.data.cocktail_components = cc.data || [];
+  state.loading = false;
+}
+
+// ============================================================================
+// COST CALCULATION
+// ============================================================================
+function ingredientPricePerUnit(ing) {
+  if (!ing || !ing.purchase_price || !ing.purchase_size) return null;
+  return ing.purchase_price / ing.purchase_size;
+}
+
+/**
+ * Calculates price per unit (of yield_unit) for a prep.
+ * Recursive via child_preps. Returns null if any component is missing a price.
+ *
+ * KNOWN LIMITATION: we do not convert between units (gr vs ml).
+ * Sum of component costs is divided by yield_quantity regardless of units.
+ */
+function prepPricePerUnit(prepId, visited = new Set()) {
+  if (visited.has(prepId)) return null; // cycle guard
+  visited.add(prepId);
+  const prep = state.data.preps.find(p => p.id === prepId);
+  if (!prep) return null;
+  const comps = state.data.prep_components.filter(c => c.prep_id === prepId);
+  if (comps.length === 0) return null;
+  let total = 0;
+  for (const c of comps) {
+    let costPer = null;
+    if (c.ingredient_id) {
+      const ing = state.data.ingredients.find(i => i.id === c.ingredient_id);
+      costPer = ingredientPricePerUnit(ing);
+    } else if (c.child_prep_id) {
+      costPer = prepPricePerUnit(c.child_prep_id, new Set(visited));
     }
+    if (costPer == null) return null;
+    total += costPer * c.quantity;
   }
-  for (const comp of cocktail.components) {
-    if (comp.ingredient_name) {
-      usage[comp.ingredient_name] = (usage[comp.ingredient_name] || 0) + comp.quantity;
-    } else if (comp.prep_name) {
-      const prep = prepByName[comp.prep_name];
-      if (prep) addPrep(prep, comp.quantity);
+  if (!prep.yield_quantity) return null;
+  return total / prep.yield_quantity;
+}
+
+function cocktailCost(cocktailId) {
+  const comps = state.data.cocktail_components.filter(c => c.cocktail_id === cocktailId);
+  if (comps.length === 0) return { cost: 0, missing: [] };
+  let total = 0;
+  const missing = [];
+  for (const c of comps) {
+    let costPer = null;
+    let name = '?';
+    if (c.ingredient_id) {
+      const ing = state.data.ingredients.find(i => i.id === c.ingredient_id);
+      name = ing?.name || 'ingredient';
+      costPer = ingredientPricePerUnit(ing);
+    } else if (c.prep_id) {
+      const p = state.data.preps.find(x => x.id === c.prep_id);
+      name = p?.name || 'prep';
+      costPer = prepPricePerUnit(c.prep_id);
     }
+    if (costPer == null) { missing.push(name); continue; }
+    total += costPer * c.quantity;
   }
-  return usage;
+  return { cost: total, missing };
 }
 
-// ============ UI ============
-function fmt(n) { return Math.round(n).toLocaleString('da-DK'); }
-function fmt2(n) { return n.toLocaleString('da-DK', {maximumFractionDigits: 2}); }
-function fmtKr(n) { return Math.round(n).toLocaleString('da-DK') + ' kr'; }
-
-function renderCocktailList() {
-  const wrap = document.getElementById('cocktail-list');
-  wrap.innerHTML = DATA.cocktails.map(c => {
-    const cost = cocktailCost(c);
-    const margin = marginPct(c);
-    const marginClass = margin >= 75 ? 'good' : margin >= 60 ? 'warn' : 'bad';
-    return `
-      <div class="cocktail-card" onclick="showCocktail('${c.id}')">
-        <div class="cocktail-name">${c.name}</div>
-        <div class="cocktail-menu-wording">${c.menu_wording}</div>
-        <div class="cocktail-meta">
-          <div class="price">${fmt(c.sell_price_dkk)} kr</div>
-          <div class="margin-pill ${marginClass}">${Math.round(margin)}% margin</div>
-        </div>
-      </div>
-    `;
-  }).join('');
+// ============================================================================
+// ROUTER + APP SHELL
+// ============================================================================
+function renderApp() {
+  document.body.innerHTML = '';
+  const toasts = el('div', { class: 'toasts', id: 'toasts' });
+  document.body.appendChild(toasts);
+  document.body.appendChild(renderTopbar());
+  const main = el('main', { id: 'main' });
+  document.body.appendChild(main);
+  document.body.appendChild(renderNav());
+  renderRoute();
 }
 
-function showCocktail(id) {
-  const c = DATA.cocktails.find(x => x.id === id);
-  if (!c) return;
-  const cost = cocktailCost(c);
-  const margin = c.sell_price_dkk - cost;
-  const marginP = marginPct(c);
+function renderTopbar() {
+  const t = state.tenants.find(x => x.id === state.activeTenantId);
+  const brand = el('div', { class: 'brand' });
+  brand.innerHTML = `Back<span class="dot">·</span>bar`;
 
-  const componentRows = c.components.map(comp => {
-    const isPrep = !!comp.prep_name;
-    const name = isPrep ? comp.prep_name : comp.ingredient_name;
-    return `
-      <div class="component-row">
-        <div class="comp-name">
-          <span class="type-tag ${isPrep ? '' : 'ing'}">${isPrep ? 'PREP' : 'ING'}</span>
-          ${name}
-        </div>
-        <div class="comp-qty">${fmt2(comp.quantity)} ${comp.unit}</div>
-      </div>
-    `;
-  }).join('');
-
-  document.getElementById('cocktail-detail-content').innerHTML = `
-    <div class="detail-view">
-      <div class="detail-header">
-        <div class="cocktail-name-large">${c.name}</div>
-        <div class="wording">${c.menu_wording}</div>
-      </div>
-
-      <div class="detail-section">
-        <h3>Smagsprofil</h3>
-        <div class="procedure-box">${c.flavour_profile}</div>
-      </div>
-
-      <div class="detail-meta-grid">
-        <div class="meta-item">
-          <div class="meta-label">Glas</div>
-          <div class="meta-value">${c.glassware}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">Is</div>
-          <div class="meta-value">${c.ice}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">Garnish</div>
-          <div class="meta-value">${c.garnish}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">Værktøj</div>
-          <div class="meta-value">${c.tools}</div>
-        </div>
-      </div>
-
-      <div class="detail-section">
-        <h3>Komponenter</h3>
-        <div class="component-list">
-          ${componentRows}
-        </div>
-      </div>
-
-      <div class="detail-section">
-        <h3>Procedure</h3>
-        <div class="procedure-box">${c.procedure}</div>
-      </div>
-
-      <div class="cost-card">
-        <div class="cost-row"><span class="label">Kostpris</span><span class="value">${fmt2(cost)} kr</span></div>
-        <div class="cost-row"><span class="label">Salgspris</span><span class="value">${fmt(c.sell_price_dkk)} kr</span></div>
-        <div class="cost-row total"><span class="label">Bruttoavance</span><span class="value">${fmt(margin)} kr</span></div>
-        <div class="margin-display">${Math.round(marginP)}% margin</div>
-      </div>
-
-      <div class="detail-section" style="margin-top: 20px;">
-        <h3>Allergener</h3>
-        <div style="font-size:12px;color:var(--muted);font-style:italic">Contains: ${c.allergens}.</div>
-      </div>
-    </div>
-  `;
-  showView('cocktail-detail');
-}
-
-function renderPrepList() {
-  const wrap = document.getElementById('prep-list');
-  const grouped = {};
-  DATA.preps.forEach(p => {
-    if (!grouped[p.type]) grouped[p.type] = [];
-    grouped[p.type].push(p);
-  });
-  wrap.innerHTML = Object.entries(grouped).map(([type, preps]) => `
-    <div class="section-title">${type.toLowerCase()} <span class="count">${preps.length}</span></div>
-    ${preps.map(p => `
-      <div class="prep-card" onclick="showPrep('${p.id}')">
-        <div class="prep-header">
-          <div class="prep-name">${p.name}</div>
-          <div class="prep-type">${p.type}</div>
-        </div>
-        <div class="prep-yield">Yield: ${fmt(p.yield_quantity)} ${p.yield_unit} · ${p.shelf_life}</div>
-      </div>
-    `).join('')}
-  `).join('');
-}
-
-function showPrep(id) {
-  const p = DATA.preps.find(x => x.id === id);
-  if (!p) return;
-  const baseDrinks = 30; // standard batch ~30 cocktails
-
-  function renderScaled(targetDrinks) {
-    const ratio = targetDrinks / baseDrinks;
-    const rows = p.ingredients.map(comp => {
-      const isPrep = !!comp.prep_name;
-      return `
-        <div class="component-row">
-          <div class="comp-name">
-            <span class="type-tag ${isPrep ? '' : 'ing'}">${isPrep ? 'PREP' : 'ING'}</span>
-            ${isPrep ? comp.prep_name : comp.ingredient_name}
-          </div>
-          <div class="comp-qty">${fmt2(comp.quantity * ratio)} ${comp.unit}</div>
-        </div>
-      `;
-    }).join('');
-    const yieldScaled = p.yield_quantity * ratio;
-    return { rows, yieldScaled };
-  }
-
-  const initial = renderScaled(baseDrinks);
-
-  document.getElementById('prep-detail-content').innerHTML = `
-    <div class="detail-view">
-      <div class="detail-header">
-        <div class="cocktail-name-large" style="font-size:28px">${p.name}</div>
-        <div class="wording">${p.type} · Yield: <span id="yield-display">${fmt(initial.yieldScaled)}</span> ${p.yield_unit}</div>
-      </div>
-
-      <div class="scaling-controls">
-        <div class="scaling-label">Skalér til antal cocktails</div>
-        <div class="scaling-input-row">
-          <input type="number" id="scale-input" value="${baseDrinks}" min="1" onchange="rescalePrep('${p.id}')">
-          <div class="scaling-unit">cocktails</div>
-        </div>
-      </div>
-
-      <div class="detail-section">
-        <h3>Ingredienser</h3>
-        <div class="component-list" id="prep-ingredients">
-          ${initial.rows}
-        </div>
-      </div>
-
-      <div class="detail-section">
-        <h3>Procedure</h3>
-        <div class="procedure-box">${p.procedure}</div>
-      </div>
-
-      <div class="detail-section">
-        <h3>Holdbarhed</h3>
-        <div style="font-size:13px;color:var(--muted)">${p.shelf_life}</div>
-      </div>
-    </div>
-  `;
-  showView('prep-detail');
-}
-
-function rescalePrep(id) {
-  const p = DATA.preps.find(x => x.id === id);
-  const target = parseFloat(document.getElementById('scale-input').value) || 30;
-  const ratio = target / 30;
-  const rows = p.ingredients.map(comp => {
-    const isPrep = !!comp.prep_name;
-    return `
-      <div class="component-row">
-        <div class="comp-name">
-          <span class="type-tag ${isPrep ? '' : 'ing'}">${isPrep ? 'PREP' : 'ING'}</span>
-          ${isPrep ? comp.prep_name : comp.ingredient_name}
-        </div>
-        <div class="comp-qty">${fmt2(comp.quantity * ratio)} ${comp.unit}</div>
-      </div>
-    `;
-  }).join('');
-  document.getElementById('prep-ingredients').innerHTML = rows;
-  document.getElementById('yield-display').textContent = fmt(p.yield_quantity * ratio);
-}
-
-function renderInventory() {
-  const wrap = document.getElementById('inventory-list');
-  wrap.innerHTML = DATA.ingredients.map(i => {
-    const lowStock = i.current_stock < i.min_stock;
-    const noPrice = !i.purchase_price_dkk;
-    const cls = noPrice ? 'no-price' : (lowStock ? 'low-stock' : '');
-    const ppu = pricePerUnit(i);
-    return `
-      <div class="inv-row ${cls}">
-        <div class="inv-info">
-          <div class="inv-name">${i.name}</div>
-          <div class="inv-sub">${i.category} · ${i.supplier} · ${fmt(i.current_stock)}/${fmt(i.min_stock)} ${i.purchase_unit}</div>
-        </div>
-        <div class="inv-price">
-          <div class="ppu">${fmt2(ppu * 10)} kr</div>
-          <div class="ppu-sub">pr. 10${i.purchase_unit}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderForecastInputs() {
-  const wrap = document.getElementById('forecast-inputs');
-  wrap.innerHTML = DATA.cocktails.map(c => `
-    <div class="forecast-item">
-      <div class="fi-info">
-        <div class="fi-name">${c.name}</div>
-        <div class="fi-price">${fmt(c.sell_price_dkk)} kr · ${Math.round(marginPct(c))}% margin</div>
-      </div>
-      <input type="number" min="0" value="0" data-cocktail="${c.id}">
-    </div>
-  `).join('');
-}
-
-function computeForecast() {
-  const inputs = document.querySelectorAll('#forecast-inputs input');
-  const totalUsage = {};
-  let totalDrinks = 0;
-  let totalCost = 0;
-  let totalRevenue = 0;
-
-  inputs.forEach(inp => {
-    const n = parseInt(inp.value) || 0;
-    if (n === 0) return;
-    const c = DATA.cocktails.find(x => x.id === inp.dataset.cocktail);
-    if (!c) return;
-    totalDrinks += n;
-    totalCost += cocktailCost(c) * n;
-    totalRevenue += c.sell_price_dkk * n;
-    const usage = flattenIngredients(c);
-    for (const [name, qty] of Object.entries(usage)) {
-      totalUsage[name] = (totalUsage[name] || 0) + qty * n;
-    }
-  });
-
-  document.getElementById('fc-drinks').textContent = fmt(totalDrinks);
-  document.getElementById('fc-cost').textContent = fmtKr(totalCost);
-  document.getElementById('fc-revenue').textContent = fmtKr(totalRevenue);
-
-  // Group order list by supplier, subtract current stock
-  const orderBySupplier = {};
-  for (const [name, neededQty] of Object.entries(totalUsage)) {
-    const ing = ingredientByName[name];
-    if (!ing) continue;
-    const stock = ing.current_stock || 0;
-    const needToOrder = Math.max(0, neededQty - stock);
-    if (needToOrder <= 0) continue;
-    const supplier = ing.supplier || 'Ukendt';
-    if (!orderBySupplier[supplier]) orderBySupplier[supplier] = [];
-    orderBySupplier[supplier].push({
-      name,
-      needed: neededQty,
-      stock,
-      toOrder: needToOrder,
-      unit: ing.purchase_unit
+  const switcher = el('div', { class: 'tenant-switch' });
+  if (state.tenants.length > 1) {
+    const sel = el('select', { onchange: e => switchTenant(e.target.value) });
+    state.tenants.forEach(t => {
+      const o = el('option', { value: t.id }, `${t.name} · ${t.role}`);
+      if (t.id === state.activeTenantId) o.selected = true;
+      sel.appendChild(o);
     });
+    switcher.appendChild(sel);
+  } else {
+    switcher.appendChild(el('span', {}, `${t?.name || ''} · ${t?.role || ''}`));
   }
 
-  const suppliersHtml = Object.entries(orderBySupplier).map(([sup, items]) => `
-    <div class="supplier-group">
-      <div class="supplier-name">${sup}</div>
-      ${items.map(it => `
-        <div class="order-line">
-          <span>${it.name}</span>
-          <span class="ol-qty">${fmt(it.toOrder)} ${it.unit}</span>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
+  const userBtn = el('button', { class: 'icon-btn', title: 'Log out', onclick: async () => {
+    await state.sb.auth.signOut();
+  }}, '⎋');
 
-  document.getElementById('fc-suppliers').innerHTML = suppliersHtml ||
-    '<div class="empty-state"><div class="msg">Alle råvarer på lager — ingen bestilling nødvendig</div></div>';
-  document.getElementById('forecast-output').style.display = 'block';
+  return el('header', { class: 'topbar' }, brand, switcher, userBtn);
 }
 
-function renderGuestShift() {
-  const wrap = document.getElementById('guest-list');
-  wrap.innerHTML = DATA.cocktails.map(c => `
-    <div class="guest-card">
-      <div class="gc-name">${c.name}</div>
-      <div class="gc-wording">${c.menu_wording}</div>
-      <div class="gc-flavour">${c.flavour_profile}</div>
-      <div class="gc-meta">
-        <div class="gc-meta-row">
-          <div class="gcm-label">Glas</div>
-          <div class="gcm-val">${c.glassware}</div>
-        </div>
-        <div class="gc-meta-row">
-          <div class="gcm-label">Is</div>
-          <div class="gcm-val">${c.ice}</div>
-        </div>
-        <div class="gc-meta-row">
-          <div class="gcm-label">Garnish</div>
-          <div class="gcm-val">${c.garnish}</div>
-        </div>
-        <div class="gc-meta-row">
-          <div class="gcm-label">ABV</div>
-          <div class="gcm-val">${c.alcohol_percent}%</div>
-        </div>
-      </div>
-      <div class="gc-allergens">Allergener: ${c.allergens}</div>
-    </div>
-  `).join('');
-}
-
-function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  const v = document.getElementById('view-' + name);
-  if (v) v.classList.add('active');
-  // sync nav (but only for top-level views)
-  document.querySelectorAll('.bottom-nav button').forEach(b => {
-    b.classList.toggle('active', b.dataset.view === name);
+function renderNav() {
+  const items = [
+    { hash: '#index',     ic: '◐', label: 'Index' },
+    { hash: '#cocktails', ic: '☐', label: 'Cocktails' },
+    { hash: '#prep',      ic: '⌬', label: 'Prep' },
+    { hash: '#inventory', ic: '☰', label: 'Inventory' },
+    { hash: '#orders',    ic: '↗', label: 'Orders' },
+    { hash: '#guest',     ic: '✦', label: 'Service' },
+  ];
+  const nav = el('nav', { class: 'bottomnav' });
+  items.forEach(it => {
+    const btn = el('button', {
+      class: 'nav-btn' + (location.hash === it.hash || (!location.hash && it.hash === '#index') ? ' active' : ''),
+      onclick: () => { location.hash = it.hash; }
+    },
+      el('span', { class: 'ic' }, it.ic),
+      el('span', {}, it.label),
+    );
+    nav.appendChild(btn);
   });
-  window.scrollTo(0, 0);
+  return nav;
 }
 
-document.querySelectorAll('.bottom-nav button').forEach(b => {
-  b.addEventListener('click', () => showView(b.dataset.view));
+window.addEventListener('hashchange', () => {
+  // refresh nav active state + view
+  const oldNav = $('.bottomnav');
+  if (oldNav) oldNav.replaceWith(renderNav());
+  renderRoute();
 });
 
-// Login
-function setRole(role) {
-  document.getElementById('userRole').textContent = role.toUpperCase();
-  document.getElementById('userName').textContent = role === 'admin' ? 'Marc' : 'Bartender';
-}
-function login() {
-  document.getElementById('login').classList.add('hidden');
-}
-function logout() {
-  document.getElementById('login').classList.remove('hidden');
+function renderRoute() {
+  const main = $('#main');
+  if (!main) return;
+  main.innerHTML = '';
+  const h = location.hash || '#index';
+  const v = el('div', { class: 'view' });
+  main.appendChild(v);
+  if (state.loading) {
+    v.appendChild(el('div', { class: 'spinner' }));
+    return;
+  }
+  if (h.startsWith('#cocktail/')) return renderCocktailDetail(v, h.split('/')[1]);
+  if (h.startsWith('#prep/'))     return renderPrepDetail(v, h.split('/')[1]);
+  switch (h) {
+    case '#cocktails': return renderCocktails(v);
+    case '#prep':      return renderPreps(v);
+    case '#inventory': return renderInventory(v);
+    case '#orders':    return renderOrders(v);
+    case '#guest':     return renderGuestShift(v);
+    case '#index':
+    default:           return renderIndex(v);
+  }
 }
 
-// Initialize
-renderCocktailList();
-renderPrepList();
-renderInventory();
-renderForecastInputs();
-renderGuestShift();
+// ============================================================================
+// INDEX
+// ============================================================================
+function renderIndex(v) {
+  const t = state.tenants.find(x => x.id === state.activeTenantId);
+  const ings = state.data.ingredients;
+  const preps = state.data.preps;
+  const cocks = state.data.cocktails;
+  const activeC = cocks.filter(c => c.is_active);
+  const lowStock = ings.filter(i => (i.current_stock || 0) < (i.min_stock || 0));
+  const noPrice = ings.filter(i => !i.purchase_price);
+
+  v.appendChild(el('div', { class: 'section-hd' },
+    el('h1', {}, t?.name || 'Bar'),
+    el('div', { class: 'rule' }),
+    el('div', { class: 'sub' }, t?.city || ''),
+  ));
+
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(el('div', { class: 'stat' },
+    el('div', { class: 'lab' }, 'Active cocktails'),
+    el('div', { class: 'num' }, String(activeC.length)),
+  ));
+  stats.appendChild(el('div', { class: 'stat' },
+    el('div', { class: 'lab' }, 'Preps'),
+    el('div', { class: 'num s' }, String(preps.length)),
+  ));
+  stats.appendChild(el('div', { class: 'stat' },
+    el('div', { class: 'lab' }, 'Ingredients'),
+    el('div', { class: 'num a' }, String(ings.length)),
+  ));
+  v.appendChild(stats);
+
+  // Low stock card
+  v.appendChild((() => {
+    const c = el('div', { class: 'card' });
+    c.appendChild(el('div', { class: 'card-hd' },
+      el('h2', {}, 'Low stock'),
+      el('span', { class: 'chip bad' }, String(lowStock.length)),
+    ));
+    if (lowStock.length === 0) {
+      c.appendChild(el('div', { class: 'card-bd', style: { color: 'var(--ink-mute)', fontSize: '13px' } }, 'Everything stocked. Cheers.'));
+    } else {
+      lowStock.slice(0, 8).forEach(i => {
+        c.appendChild(el('div', { class: 'row click', onclick: () => location.hash = '#inventory' },
+          el('div', { class: 'grow' },
+            el('div', { class: 'ttl' }, i.name),
+            el('div', { class: 'sb' }, `${i.category || ''} · min ${i.min_stock || 0} ${i.purchase_unit || ''}`),
+          ),
+          el('div', { class: 'right' },
+            el('span', { class: 'chip bad' }, `${i.current_stock || 0} ${i.purchase_unit || ''}`),
+          ),
+        ));
+      });
+    }
+    return c;
+  })());
+
+  // Missing price card
+  v.appendChild((() => {
+    const c = el('div', { class: 'card' });
+    c.appendChild(el('div', { class: 'card-hd' },
+      el('h2', {}, 'Missing price'),
+      el('span', { class: 'chip warn' }, String(noPrice.length)),
+    ));
+    if (noPrice.length === 0) {
+      c.appendChild(el('div', { class: 'card-bd', style: { color: 'var(--ink-mute)', fontSize: '13px' } }, 'All ingredients priced.'));
+    } else {
+      noPrice.slice(0, 8).forEach(i => {
+        c.appendChild(el('div', { class: 'row click', onclick: () => location.hash = '#inventory' },
+          el('div', { class: 'grow' },
+            el('div', { class: 'ttl' }, i.name),
+            el('div', { class: 'sb' }, i.supplier || '—'),
+          ),
+        ));
+      });
+    }
+    return c;
+  })());
+}
+
+// ============================================================================
+// COCKTAILS
+// ============================================================================
+function renderCocktails(v) {
+  const isAdmin = currentRole() === 'admin';
+  v.appendChild(el('div', { class: 'section-hd' },
+    el('h1', {}, 'Cocktails'),
+    el('div', { class: 'rule' }),
+    el('div', { class: 'sub' }, `${state.data.cocktails.length} items`),
+  ));
+
+  const q = el('input', { class: 'search', placeholder: 'Search cocktail or ingredient…', oninput: () => render() });
+  const onlyActive = el('label', { class: 'chip s', style:{cursor:'pointer'} },
+    el('input', { type:'checkbox', id:'onlyactive', style:{marginRight:'4px'}, onchange: () => render() }),
+    'Active only',
+  );
+  v.appendChild(q);
+  v.appendChild(el('div', { style: { marginBottom: '10px' } }, onlyActive));
+
+  const list = el('div', { class: 'card' });
+  v.appendChild(list);
+
+  if (isAdmin) {
+    v.appendChild(el('div', { class: 'btn-row', style: { marginTop: '12px' } },
+      el('button', { class: 'btn', onclick: () => openCocktailEditor(null) }, '+ New cocktail'),
+    ));
+  }
+
+  function render() {
+    const term = q.value.toLowerCase().trim();
+    const filterActive = $('#onlyactive')?.checked;
+    list.innerHTML = '';
+    let rows = state.data.cocktails;
+    if (filterActive) rows = rows.filter(c => c.is_active);
+    if (term) {
+      rows = rows.filter(c =>
+        (c.name||'').toLowerCase().includes(term) ||
+        (c.menu_wording||'').toLowerCase().includes(term)
+      );
+    }
+    if (rows.length === 0) {
+      list.appendChild(el('div', { class: 'empty' },
+        el('div', { class: 'big' }, 'No cocktails'),
+        el('div', {}, 'Adjust search or create a new one.')
+      ));
+      return;
+    }
+    rows.forEach(c => {
+      const { cost, missing } = cocktailCost(c.id);
+      const margin = c.sell_price && cost ? ((c.sell_price - cost) / c.sell_price) * 100 : null;
+      const row = el('div', { class: 'row click', onclick: () => location.hash = '#cocktail/' + c.id },
+        el('div', { class: 'grow' },
+          el('div', { class: 'ttl' }, c.name, !c.is_active ? el('span', { class:'chip warn', style:{marginLeft:'6px'} }, 'INACTIVE') : null),
+          el('div', { class: 'sb' }, c.menu_wording || ''),
+        ),
+        el('div', { class: 'right' },
+          el('div', { style:{fontWeight:600} }, dkk(c.sell_price)),
+          missing.length > 0
+            ? el('div', { class:'chip warn', style:{marginTop:'4px'} }, '⚠ price')
+            : margin != null
+              ? el('div', { class: 'chip ' + (margin < 70 ? 'warn' : 'ok'), style:{marginTop:'4px'} }, num(margin,1) + '%')
+              : null,
+        ),
+      );
+      list.appendChild(row);
+    });
+  }
+  render();
+}
+
+function renderCocktailDetail(v, id) {
+  const c = state.data.cocktails.find(x => x.id === id);
+  if (!c) {
+    v.appendChild(el('div', { class:'empty' }, 'Cocktail not found.'));
+    return;
+  }
+  const isAdmin = currentRole() === 'admin';
+  const comps = state.data.cocktail_components.filter(cc => cc.cocktail_id === id);
+  const { cost, missing } = cocktailCost(id);
+  const profit = c.sell_price && cost != null ? c.sell_price - cost : null;
+  const margin = c.sell_price && cost ? ((c.sell_price - cost) / c.sell_price) * 100 : null;
+  const marginKind = margin == null ? '' : (margin < 70 ? 'warn' : 'ok');
+
+  v.appendChild(el('button', { class: 'btn ghost sm', onclick: () => location.hash = '#cocktails' }, '← Back'));
+
+  const hero = el('div', { class: 'cocktail-hero' });
+  hero.appendChild(el('h2', {}, c.name));
+  if (c.menu_wording) hero.appendChild(el('div', { class:'menu' }, c.menu_wording));
+  hero.appendChild(el('div', { class:'meta' },
+    el('div', {}, el('b', {}, 'Glass'), c.glassware || '—'),
+    el('div', {}, el('b', {}, 'Ice'), c.ice || '—'),
+    el('div', {}, el('b', {}, 'ABV'), num(c.alcohol_percent,1) + '%'),
+  ));
+  v.appendChild(hero);
+
+  // Cost panel
+  const costCard = el('div', { class:'card' });
+  costCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Cost breakdown')));
+  const cb = el('div',{class:'card-bd'});
+  const cg = el('div',{class:'cost-grid'});
+  cg.appendChild(el('div',{class:'cost-tile'},
+    el('div',{class:'lab'},'Sell price'), el('div',{class:'val'}, dkk(c.sell_price))));
+  cg.appendChild(el('div',{class:'cost-tile' + (missing.length ? ' warn':'')},
+    el('div',{class:'lab'},'Cost'), el('div',{class:'val'}, missing.length ? '—' : dkk(cost))));
+  cg.appendChild(el('div',{class:'cost-tile'},
+    el('div',{class:'lab'},'Gross profit'), el('div',{class:'val'}, missing.length ? '—' : dkk(profit))));
+  cg.appendChild(el('div',{class:'cost-tile ' + marginKind},
+    el('div',{class:'lab'},'Margin'), el('div',{class:'val'}, missing.length ? '—' : (num(margin,1)+'%'))));
+  cb.appendChild(cg);
+  if (missing.length) {
+    cb.appendChild(el('div',{style:{marginTop:'10px'},class:'chip warn'}, '⚠ Missing price for: ' + missing.join(', ')));
+  } else if (margin != null && margin < 70) {
+    cb.appendChild(el('div',{style:{marginTop:'10px'},class:'chip warn'}, '⚠ Margin below 70%'));
+  }
+  costCard.appendChild(cb);
+  v.appendChild(costCard);
+
+  // Components
+  const compCard = el('div',{class:'card'});
+  compCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Recipe')));
+  comps.forEach(comp => {
+    let label = '?', sub = '';
+    if (comp.ingredient_id) {
+      const ing = state.data.ingredients.find(i => i.id === comp.ingredient_id);
+      label = ing?.name || 'ingredient';
+      sub = ing?.category || '';
+    } else if (comp.prep_id) {
+      const p = state.data.preps.find(x => x.id === comp.prep_id);
+      label = p?.name || 'prep';
+      sub = p?.type || 'PREP';
+    }
+    compCard.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow'},
+        el('div',{class:'ttl'}, label),
+        el('div',{class:'sb'}, sub),
+      ),
+      el('div',{class:'right'}, `${num(comp.quantity)} ${comp.unit}`),
+    ));
+  });
+  v.appendChild(compCard);
+
+  // Meta info
+  const meta = el('div',{class:'card'});
+  meta.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Details')));
+  const mb = el('div',{class:'card-bd'});
+  const dl = el('dl',{class:'kv'});
+  const rows = [
+    ['Menu', c.menu_wording],
+    ['Flavour', c.flavour_profile],
+    ['Allrgens', c.allergens],
+    ['Garnish', c.garnish],
+    ['Tools', c.tools],
+    ['Procedure', c.procedure],
+  ];
+  rows.forEach(([k,vv]) => {
+    if (!vv) return;
+    dl.appendChild(el('dt',{},k));
+    dl.appendChild(el('dd',{},vv));
+  });
+  mb.appendChild(dl);
+  meta.appendChild(mb);
+  v.appendChild(meta);
+
+  if (isAdmin) {
+    v.appendChild(el('div',{class:'btn-row',style:{marginTop:'12px'}},
+      el('button',{class:'btn',onclick:() => openCocktailEditor(c)},'Edit'),
+      el('button',{class:'btn ghost',onclick:async()=>{
+        if (!confirm('Toggle active state for ' + c.name + ' on the menu?')) return;
+        const { error } = await state.sb.from('cocktails').update({ is_active: !c.is_active }).eq('id', c.id);
+        if (error) toast(error.message, 'bad'); else { c.is_active = !c.is_active; toast('Updated','ok'); renderRoute(); }
+      }}, c.is_active ? 'Set inactive' : 'Set active'),
+    ));
+  }
+}
+
+// ============================================================================
+// PREPS
+// ============================================================================
+function renderPreps(v) {
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{},'Prep'),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, `${state.data.preps.length} items`),
+  ));
+
+  const types = ['PREMIX','BATCH','SYRUP','INFUSION','CORDIAL'];
+  const byType = {};
+  types.forEach(t => byType[t] = state.data.preps.filter(p => p.type === t));
+
+  types.forEach(t => {
+    const arr = byType[t];
+    if (arr.length === 0) return;
+    const c = el('div',{class:'card'});
+    c.appendChild(el('div',{class:'card-hd'},
+      el('h2',{}, t.charAt(0) + t.slice(1).toLowerCase()),
+      el('span',{class:'chip'}, String(arr.length)),
+    ));
+    arr.forEach(p => {
+      c.appendChild(el('div',{class:'row click', onclick:() => location.hash = '#prep/' + p.id},
+        el('div',{class:'grow'},
+          el('div',{class:'ttl'}, p.name),
+          el('div',{class:'sb'}, `Yield: ${num(p.yield_quantity)} ${p.yield_unit}`),
+        ),
+        el('div',{class:'right'},
+          el('span',{class:'chip s'}, p.shelf_life ? p.shelf_life.split('.')[0].slice(0,28) : ''),
+        ),
+      ));
+    });
+    v.appendChild(c);
+  });
+}
+
+function renderPrepDetail(v, id) {
+  const p = state.data.preps.find(x => x.id === id);
+  if (!p) { v.appendChild(el('div',{class:'empty'}, 'Prep not found.')); return; }
+  const comps = state.data.prep_components.filter(c => c.prep_id === id);
+  const ppu = prepPricePerUnit(id);
+
+  v.appendChild(el('button',{class:'btn ghost sm no-print', onclick:() => location.hash = '#prep'}, '← Back'));
+
+  const hero = el('div',{class:'cocktail-hero'});
+  hero.appendChild(el('h2',{}, p.name));
+  hero.appendChild(el('div',{class:'menu'}, p.type));
+  hero.appendChild(el('div',{class:'meta'},
+    el('div',{}, el('b',{},'Yield'), `${num(p.yield_quantity)} ${p.yield_unit}`),
+    el('div',{}, el('b',{},'Shelf life'), p.shelf_life ? p.shelf_life.slice(0,40) : '—'),
+    el('div',{}, el('b',{},'Kost/'+p.yield_unit), ppu != null ? dkk(ppu) : '—'),
+  ));
+  v.appendChild(hero);
+
+  // Scaling tool
+  const scale = el('div',{class:'card no-print'});
+  scale.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Scale')));
+  const sb = el('div',{class:'card-bd'});
+  const inp = el('input',{class:'input', type:'number', min:'1', value:'1', style:{maxWidth:'120px'}});
+  const out = el('div',{style:{marginTop:'10px'}});
+  function recalc() {
+    const factor = Number(inp.value) || 1;
+    out.innerHTML = '';
+    out.appendChild(el('div',{style:{fontSize:'13px',color:'var(--ink-mute)',marginBottom:'8px'}},
+      `Scale to ${num(p.yield_quantity * factor)} ${p.yield_unit}:`));
+    comps.forEach(c => {
+      let name = '?';
+      if (c.ingredient_id) name = state.data.ingredients.find(i => i.id === c.ingredient_id)?.name || 'ing';
+      else if (c.child_prep_id) name = state.data.preps.find(x => x.id === c.child_prep_id)?.name || 'prep';
+      out.appendChild(el('div',{class:'row',style:{borderBottom:'1px solid var(--line)',padding:'8px 0'}},
+        el('div',{class:'grow'}, el('div',{class:'ttl'}, name)),
+        el('div',{class:'right'}, `${num(c.quantity * factor, 1)} ${c.unit}`),
+      ));
+    });
+  }
+  inp.addEventListener('input', recalc);
+  sb.appendChild(el('div',{class:'field'},
+    el('label',{},'Multiplier'),
+    inp,
+  ));
+  sb.appendChild(out);
+  scale.appendChild(sb);
+  v.appendChild(scale);
+  recalc();
+
+  // Components
+  const compCard = el('div',{class:'card'});
+  compCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Components')));
+  comps.forEach(c => {
+    let label = '?', sub = '';
+    if (c.ingredient_id) {
+      const ing = state.data.ingredients.find(i => i.id === c.ingredient_id);
+      label = ing?.name || 'ing'; sub = ing?.category || '';
+    } else if (c.child_prep_id) {
+      const cp = state.data.preps.find(x => x.id === c.child_prep_id);
+      label = cp?.name || 'prep'; sub = 'CHILD PREP';
+    }
+    compCard.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow'}, el('div',{class:'ttl'},label), el('div',{class:'sb'},sub)),
+      el('div',{class:'right'}, `${num(c.quantity,2)} ${c.unit}`),
+    ));
+  });
+  v.appendChild(compCard);
+
+  if (p.procedure) {
+    const proc = el('div',{class:'card'});
+    proc.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Procedure')));
+    proc.appendChild(el('div',{class:'card-bd', style:{whiteSpace:'pre-wrap'}}, p.procedure));
+    v.appendChild(proc);
+  }
+
+  v.appendChild(el('div',{class:'btn-row no-print', style:{marginTop:'12px'}},
+    el('button',{class:'btn ghost', onclick:() => window.print()},'🖨 Print'),
+  ));
+}
+
+// ============================================================================
+// INVENTORY
+// ============================================================================
+function renderInventory(v) {
+  const isAdmin = currentRole() === 'admin';
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{},'Inventory'),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, `${state.data.ingredients.length} ingredients`),
+  ));
+
+  const search = el('input',{class:'search', placeholder:'Search ingredient…', oninput:render});
+  v.appendChild(search);
+
+  // Category filter
+  const cats = ['All', ...Array.from(new Set(state.data.ingredients.map(i => i.category).filter(Boolean))).sort()];
+  const sup = ['All', ...Array.from(new Set(state.data.ingredients.map(i => i.supplier).filter(Boolean))).sort()];
+  const catSel = el('select',{class:'input',onchange:render});
+  cats.forEach(c => catSel.appendChild(el('option',{value:c}, c)));
+  const supSel = el('select',{class:'input',onchange:render});
+  sup.forEach(s => supSel.appendChild(el('option',{value:s}, s)));
+  v.appendChild(el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'12px'}},
+    el('div',{class:'field',style:{margin:0}}, el('label',{},'Category'), catSel),
+    el('div',{class:'field',style:{margin:0}}, el('label',{},'Supplier'), supSel),
+  ));
+
+  if (isAdmin) {
+    v.appendChild(el('div',{class:'btn-row',style:{marginBottom:'12px'}},
+      el('button',{class:'btn', onclick:() => openIngredientEditor(null)}, '+ New ingredient'),
+      el('button',{class:'btn sec', onclick:openBarcodeScanner}, '⟟ Barcode'),
+    ));
+  }
+
+  const list = el('div',{class:'card'});
+  v.appendChild(list);
+
+  function render() {
+    const term = search.value.toLowerCase().trim();
+    const fcat = catSel.value;
+    const fsup = supSel.value;
+    list.innerHTML = '';
+    let rows = state.data.ingredients;
+    if (fcat !== 'All') rows = rows.filter(i => i.category === fcat);
+    if (fsup !== 'All') rows = rows.filter(i => i.supplier === fsup);
+    if (term) rows = rows.filter(i => (i.name||'').toLowerCase().includes(term));
+    if (rows.length === 0) {
+      list.appendChild(el('div',{class:'empty'}, el('div',{class:'big'},'No ingredients'), el('div',{},'Adjust search or filters.')));
+      return;
+    }
+    rows.forEach(i => {
+      const ppu = ingredientPricePerUnit(i);
+      const lowFlag = (i.current_stock || 0) < (i.min_stock || 0);
+      const row = el('div',{class:'inv-row', style:{cursor:isAdmin ? 'pointer':'default'}});
+      const main = el('div',{},
+        el('div',{class:'name'}, i.name),
+        el('div',{class:'meta'},
+          (i.category || '—') + ' · ' + (i.supplier || '—') + ' · ' +
+          (ppu != null ? dkk(ppu) + '/' + (i.purchase_unit||'') : 'no price'))
+      );
+      if (isAdmin) main.addEventListener('click', () => openIngredientEditor(i));
+      row.appendChild(main);
+
+      // Stock cell
+      const stockBtn = el('button',{class:'btn ghost sm', onclick:() => openStockEditor(i)},
+        `${num(i.current_stock || 0, 0)} ${i.purchase_unit || ''}`);
+      if (lowFlag) stockBtn.classList.add('danger');
+      row.appendChild(stockBtn);
+      list.appendChild(row);
+    });
+  }
+  render();
+}
+
+async function openStockEditor(ing) {
+  const inp = el('input',{class:'input',type:'number',value:String(ing.current_stock || 0), step:'1'});
+  await modal('Update stock — ' + ing.name, el('div',{class:'field'},
+    el('label',{}, `Current stock (${ing.purchase_unit || ''})`),
+    inp,
+    el('div',{style:{fontSize:'12px',color:'var(--ink-mute)',marginTop:'8px'}},
+      `Min. ${ing.min_stock || 0} ${ing.purchase_unit || ''}`),
+  ), async () => {
+    const val = Number(inp.value);
+    if (isNaN(val)) return toast('Invalid value','bad');
+    const { error } = await state.sb.from('ingredients').update({ current_stock: val }).eq('id', ing.id);
+    if (error) return toast(error.message, 'bad');
+    ing.current_stock = val;
+    toast('Stock updated','ok');
+    renderRoute();
+    return true;
+  });
+}
+
+async function openIngredientEditor(ing) {
+  const isNew = !ing;
+  const f = ing ? { ...ing } : {
+    name:'', category:'', supplier:'', purchase_size:'', purchase_unit:'ml',
+    purchase_price:'', min_stock:0, current_stock:0, barcode:'',
+  };
+  const form = el('div',{});
+  function fld(label, key, type='text', extra={}) {
+    const id = 'fld_' + key;
+    const inp = el(type === 'textarea' ? 'textarea' : 'input',
+      Object.assign({ class:'input', id, value: f[key] ?? '', ...(type !== 'textarea' ? { type } : {}),
+        oninput: e => f[key] = type==='number' ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value
+      }, extra));
+    form.appendChild(el('div',{class:'field'}, el('label',{for:id}, label), inp));
+  }
+  fld('Name','name');
+  fld('Category','category');
+  fld('Supplier','supplier');
+  fld('Purchase size','purchase_size','number');
+  fld('Unit','purchase_unit');
+  fld('Purchase price (DKK)','purchase_price','number');
+  fld('Min. stock','min_stock','number');
+  fld('Barcode','barcode');
+
+  await modal(isNew ? 'New ingredient' : 'Edit ingredient', form, async () => {
+    if (!f.name) return toast('Name required','bad');
+    const payload = {
+      tenant_id: state.activeTenantId,
+      name: f.name, category: f.category || null, supplier: f.supplier || null,
+      purchase_size: f.purchase_size || null, purchase_unit: f.purchase_unit || null,
+      purchase_price: f.purchase_price || null,
+      min_stock: f.min_stock || 0,
+      barcode: f.barcode || null,
+    };
+    if (isNew) payload.current_stock = f.current_stock || 0;
+    const q = isNew
+      ? state.sb.from('ingredients').insert(payload).select().single()
+      : state.sb.from('ingredients').update(payload).eq('id', ing.id).select().single();
+    const { data, error } = await q;
+    if (error) return toast(error.message, 'bad');
+    if (isNew) state.data.ingredients.push(data);
+    else Object.assign(ing, data);
+    toast('Saved','ok');
+    renderRoute();
+    return true;
+  });
+}
+
+// --- Barcode scanner ---
+async function openBarcodeScanner() {
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    return toast('Barcode scanning requires HTTPS','bad');
+  }
+  if (!('BarcodeDetector' in window)) {
+    return toast('BarcodeDetector not supported. ZXing fallback not included in this build.','bad');
+  }
+  const video = el('video',{autoplay:true, muted:true, playsinline:true, style:{width:'100%',borderRadius:'10px',background:'#000'}});
+  const status = el('div',{style:{fontSize:'13px',color:'var(--ink-mute)',textAlign:'center',marginTop:'8px'}}, 'Hold the barcode up to the camera…');
+  let stream = null, raf = null;
+  const cleanup = () => {
+    if (raf) cancelAnimationFrame(raf);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  };
+  await modal('Scan barcode', el('div',{},video,status), null, cleanup);
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' } });
+    video.srcObject = stream;
+    const det = new BarcodeDetector({ formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code'] });
+    const scan = async () => {
+      try {
+        const codes = await det.detect(video);
+        if (codes.length > 0) {
+          const code = codes[0].rawValue;
+          cleanup();
+          closeModal();
+          const hit = state.data.ingredients.find(i => i.barcode === code);
+          if (hit) {
+            toast('Found: ' + hit.name, 'ok');
+            openStockEditor(hit);
+          } else {
+            if (confirm('Barcode not found (' + code + '). Create new ingredient?')) {
+              openIngredientEditor({ barcode: code });
+            }
+          }
+          return;
+        }
+      } catch(e) { /* ignore */ }
+      raf = requestAnimationFrame(scan);
+    };
+    scan();
+  } catch(e) {
+    toast('Camera error: ' + e.message, 'bad');
+    closeModal();
+  }
+}
+
+// ============================================================================
+// ORDERS
+// ============================================================================
+function renderOrders(v) {
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{}, 'Orders'),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, 'forecast / stock'),
+  ));
+
+  let mode = localStorage.getItem('orders_mode') || 'forecast';
+  const tabs = el('div',{class:'btn-row',style:{marginBottom:'12px'}});
+  const tabF = el('button',{class:'btn ' + (mode==='forecast'?'':'ghost'),onclick:()=>{mode='forecast';localStorage.setItem('orders_mode',mode);render();}}, 'Forecast');
+  const tabS = el('button',{class:'btn ' + (mode==='stock'?'':'ghost'),onclick:()=>{mode='stock';localStorage.setItem('orders_mode',mode);render();}}, 'Stock');
+  tabs.appendChild(tabF); tabs.appendChild(tabS);
+  v.appendChild(tabs);
+
+  const body = el('div',{});
+  v.appendChild(body);
+
+  function render() {
+    tabF.className = 'btn ' + (mode==='forecast'?'':'ghost');
+    tabS.className = 'btn ' + (mode==='stock'?'':'ghost');
+    body.innerHTML = '';
+    if (mode === 'forecast') renderForecast(body);
+    else renderStockOrders(body);
+  }
+  render();
+}
+
+function renderForecast(body) {
+  // Choose cocktails + quantity
+  const counts = JSON.parse(localStorage.getItem('forecast_counts_' + state.activeTenantId) || '{}');
+
+  const list = el('div',{class:'card'});
+  list.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Expected sales per cocktail')));
+  state.data.cocktails.filter(c => c.is_active).forEach(c => {
+    const inp = el('input',{type:'number',min:'0',value:String(counts[c.id]||0), class:'input', style:{maxWidth:'90px',padding:'6px 8px',minHeight:'36px'}, oninput:e=>{
+      counts[c.id] = Number(e.target.value) || 0;
+      localStorage.setItem('forecast_counts_'+state.activeTenantId, JSON.stringify(counts));
+      compute();
+    }});
+    list.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow'}, el('div',{class:'ttl'}, c.name), el('div',{class:'sb'}, c.menu_wording||'')),
+      el('div',{class:'right'}, inp),
+    ));
+  });
+  body.appendChild(list);
+
+  const result = el('div',{style:{marginTop:'14px'}});
+  body.appendChild(result);
+
+  function ingredientUsage() {
+    // returns Map<ingredient_id, qty> — uses ingredient's purchase_unit aggregate (no unit conversion!)
+    const usage = new Map();
+    function addIng(ingId, qty) {
+      usage.set(ingId, (usage.get(ingId) || 0) + qty);
+    }
+    function expandPrep(prepId, qtyOfPrep) {
+      const prep = state.data.preps.find(p => p.id === prepId);
+      if (!prep || !prep.yield_quantity) return;
+      const ratio = qtyOfPrep / prep.yield_quantity;
+      const comps = state.data.prep_components.filter(c => c.prep_id === prepId);
+      comps.forEach(c => {
+        if (c.ingredient_id) addIng(c.ingredient_id, c.quantity * ratio);
+        else if (c.child_prep_id) expandPrep(c.child_prep_id, c.quantity * ratio);
+      });
+    }
+    for (const [cid, n] of Object.entries(counts)) {
+      if (!n) continue;
+      const comps = state.data.cocktail_components.filter(cc => cc.cocktail_id === cid);
+      comps.forEach(c => {
+        if (c.ingredient_id) addIng(c.ingredient_id, c.quantity * n);
+        else if (c.prep_id) expandPrep(c.prep_id, c.quantity * n);
+      });
+    }
+    return usage;
+  }
+
+  function compute() {
+    result.innerHTML = '';
+    const usage = ingredientUsage();
+    if (usage.size === 0) {
+      result.appendChild(el('div',{class:'empty'}, el('div',{class:'big'},'Set cocktail counts')));
+      return;
+    }
+    // Calculate order: need usage - current_stock, rounded up to purchase_size units
+    const bySupplier = new Map();
+    for (const [ingId, used] of usage.entries()) {
+      const ing = state.data.ingredients.find(i => i.id === ingId);
+      if (!ing) continue;
+      const have = ing.current_stock || 0;
+      const target = Math.max(used, ing.min_stock || 0);
+      const need = target - have;
+      if (need <= 0) continue;
+      const units = ing.purchase_size ? Math.ceil(need / ing.purchase_size) : 1;
+      const supplier = ing.supplier || 'No supplier';
+      if (!bySupplier.has(supplier)) bySupplier.set(supplier, []);
+      bySupplier.get(supplier).push({ ing, used, need, units });
+    }
+    if (bySupplier.size === 0) {
+      result.appendChild(el('div',{class:'empty'}, el('div',{class:'big'},'Stock covers forecast')));
+      return;
+    }
+    for (const [sup, items] of bySupplier.entries()) {
+      const card = el('div',{class:'card'});
+      const total = items.reduce((s,it) => s + (it.ing.purchase_price || 0) * it.units, 0);
+      card.appendChild(el('div',{class:'card-hd'},
+        el('h2',{}, sup),
+        el('span',{class:'chip a'}, dkk(total)),
+      ));
+      items.forEach(it => {
+        card.appendChild(el('div',{class:'row'},
+          el('div',{class:'grow'},
+            el('div',{class:'ttl'}, it.ing.name),
+            el('div',{class:'sb'}, `Need: ${num(it.need,1)} ${it.ing.purchase_unit||''}`),
+          ),
+          el('div',{class:'right'},
+            el('div',{style:{fontWeight:600}}, `${it.units} × ${num(it.ing.purchase_size,0)} ${it.ing.purchase_unit||''}`),
+            el('div',{class:'sb',style:{fontSize:'12px'}}, dkk((it.ing.purchase_price||0)*it.units)),
+          ),
+        ));
+      });
+      card.appendChild(el('div',{class:'card-bd no-print',style:{display:'flex',gap:'8px'}},
+        el('button',{class:'btn ghost sm', onclick:()=>exportSupplierCSV(sup,items)},'⇩ CSV'),
+        el('button',{class:'btn ghost sm', onclick:()=>exportSupplierMail(sup,items)},'✉ Email'),
+      ));
+      result.appendChild(card);
+    }
+  }
+  compute();
+}
+
+function renderStockOrders(body) {
+  const low = state.data.ingredients.filter(i => (i.current_stock||0) < (i.min_stock||0));
+  if (low.length === 0) {
+    body.appendChild(el('div',{class:'empty'}, el('div',{class:'big'},'Everything in stock'), el('div',{},'No ingredients below minimum.')));
+    return;
+  }
+  const bySupplier = new Map();
+  low.forEach(ing => {
+    const need = (ing.min_stock || 0) - (ing.current_stock || 0);
+    const units = ing.purchase_size ? Math.ceil(need / ing.purchase_size) : 1;
+    const sup = ing.supplier || 'No supplier';
+    if (!bySupplier.has(sup)) bySupplier.set(sup, []);
+    bySupplier.get(sup).push({ ing, need, units });
+  });
+  for (const [sup, items] of bySupplier.entries()) {
+    const card = el('div',{class:'card'});
+    const total = items.reduce((s,it)=> s + (it.ing.purchase_price || 0)*it.units, 0);
+    card.appendChild(el('div',{class:'card-hd'}, el('h2',{}, sup), el('span',{class:'chip a'}, dkk(total))));
+    items.forEach(it => {
+      card.appendChild(el('div',{class:'row'},
+        el('div',{class:'grow'},
+          el('div',{class:'ttl'}, it.ing.name),
+          el('div',{class:'sb'}, `${num(it.ing.current_stock||0)}/${num(it.ing.min_stock||0)} ${it.ing.purchase_unit||''}`),
+        ),
+        el('div',{class:'right'},
+          el('div',{style:{fontWeight:600}}, `${it.units} × ${num(it.ing.purchase_size,0)} ${it.ing.purchase_unit||''}`),
+          el('div',{class:'sb',style:{fontSize:'12px'}}, dkk((it.ing.purchase_price||0)*it.units)),
+        ),
+      ));
+    });
+    card.appendChild(el('div',{class:'card-bd no-print',style:{display:'flex',gap:'8px'}},
+      el('button',{class:'btn ghost sm', onclick:()=>exportSupplierCSV(sup,items)},'⇩ CSV'),
+      el('button',{class:'btn ghost sm', onclick:()=>exportSupplierMail(sup,items)},'✉ Email'),
+    ));
+    body.appendChild(card);
+  }
+}
+
+function exportSupplierCSV(sup, items) {
+  const rows = [['Ingredient','Quantity','Unit size','Unit','Unit price','Total']];
+  items.forEach(it => rows.push([
+    it.ing.name, it.units, it.ing.purchase_size || '', it.ing.purchase_unit || '',
+    it.ing.purchase_price || '', (it.ing.purchase_price||0)*it.units,
+  ]));
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a = el('a',{href:URL.createObjectURL(blob), download:`order-${sup.replace(/\s+/g,'_')}.csv`});
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function exportSupplierMail(sup, items) {
+  const body = items.map(it => `- ${it.ing.name}: ${it.units} × ${it.ing.purchase_size||''} ${it.ing.purchase_unit||''}`).join('\n');
+  location.href = `mailto:?subject=Order ${sup}&body=${encodeURIComponent('Hi,\n\nWe would like to order:\n\n' + body + '\n\nBest regards')}`;
+}
+
+// ============================================================================
+// GUEST SHIFT
+// ============================================================================
+function renderGuestShift(v) {
+  const t = state.tenants.find(x => x.id === state.activeTenantId);
+  const actives = state.data.cocktails.filter(c => c.is_active);
+
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{}, 'Service'),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, `${actives.length} cocktails on the menu`),
+  ));
+
+  v.appendChild(el('div',{class:'btn-row no-print',style:{marginBottom:'14px'}},
+    el('button',{class:'btn',onclick:()=>window.print()},'🖨 Print A4'),
+  ));
+
+  actives.forEach(c => {
+    const card = el('div',{class:'gs-cocktail'});
+    card.appendChild(el('h3',{}, c.name));
+    if (c.menu_wording) card.appendChild(el('div',{class:'gs-menu'}, c.menu_wording));
+    if (c.flavour_profile) card.appendChild(el('div',{class:'gs-flavour'}, c.flavour_profile));
+    const grid = el('div',{class:'gs-grid'});
+    const fields = [['Glass',c.glassware],['Ice',c.ice],['Garnish',c.garnish],['Tools',c.tools]];
+    fields.forEach(([k,vv]) => { if (vv) grid.appendChild(el('div',{}, el('b',{},k), vv)); });
+    card.appendChild(grid);
+    if (c.procedure) card.appendChild(el('div',{style:{fontSize:'12px',color:'var(--ink-soft)',marginTop:'10px'}}, c.procedure));
+    if (c.allergens) card.appendChild(el('div',{class:'gs-allerg'}, c.allergens));
+    v.appendChild(card);
+  });
+}
+
+// ============================================================================
+// COCKTAIL EDITOR (minimal — full editor er stort scope)
+// ============================================================================
+async function openCocktailEditor(c) {
+  const isNew = !c;
+  const f = c ? { ...c } : {
+    name:'', menu_wording:'', flavour_profile:'', allergens:'',
+    glassware:'', ice:'', garnish:'', tools:'', procedure:'',
+    alcohol_percent:null, sell_price:null, is_active:true,
+  };
+  const form = el('div');
+  const fld = (label,key,type='text') => {
+    const id = 'ce_' + key;
+    const inp = el(type==='textarea'?'textarea':'input',{
+      class:'input', id, value:f[key]??'', ...(type!=='textarea'?{type}:{}),
+      oninput:e=>f[key] = type==='number' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value,
+    });
+    form.appendChild(el('div',{class:'field'}, el('label',{for:id},label), inp));
+  };
+  fld('Name','name');
+  fld('Menu wording','menu_wording','textarea');
+  fld('Flavour profile','flavour_profile','textarea');
+  fld('Allrgens','allergens','textarea');
+  fld('Glass','glassware');
+  fld('Ice','ice');
+  fld('Garnish','garnish');
+  fld('Tools','tools');
+  fld('Procedure','procedure','textarea');
+  fld('Alcohol %','alcohol_percent','number');
+  fld('Sell price (DKK)','sell_price','number');
+
+  form.appendChild(el('div',{style:{fontSize:'12px',color:'var(--ink-mute)',marginTop:'8px'}},
+    'Components are not edited here yet — only via SQL/seed for now.'));
+
+  await modal(isNew?'New cocktail':'Edit cocktail', form, async () => {
+    if (!f.name) return toast('Name required','bad');
+    const payload = { ...f, tenant_id: state.activeTenantId };
+    delete payload.id; delete payload.created_at;
+    const q = isNew
+      ? state.sb.from('cocktails').insert(payload).select().single()
+      : state.sb.from('cocktails').update(payload).eq('id', c.id).select().single();
+    const { data, error } = await q;
+    if (error) return toast(error.message, 'bad');
+    if (isNew) state.data.cocktails.push(data);
+    else Object.assign(c, data);
+    toast('Saved','ok');
+    renderRoute();
+    return true;
+  });
+}
+
+// ============================================================================
+// MODAL HELPER
+// ============================================================================
+let _currentModal = null;
+async function modal(title, body, onConfirm, onClose) {
+  return new Promise(resolve => {
+    closeModal();
+    const bg = el('div',{class:'modal-bg', onclick:e=>{ if (e.target === bg) close(); }});
+    const m = el('div',{class:'modal'});
+    const close = (val) => {
+      if (onClose) onClose();
+      bg.remove();
+      _currentModal = null;
+      resolve(val);
+    };
+    m.appendChild(el('div',{class:'modal-hd'},
+      el('h3',{},title),
+      el('button',{class:'icon-btn',style:{color:'var(--ink)'},onclick:()=>close()},'✕'),
+    ));
+    const bd = el('div',{class:'modal-bd'}); bd.appendChild(body); m.appendChild(bd);
+    if (onConfirm) {
+      m.appendChild(el('div',{class:'modal-ft'},
+        el('button',{class:'btn ghost',onclick:()=>close()},'Cancel'),
+        el('button',{class:'btn',onclick:async()=>{ const ok = await onConfirm(); if (ok) close(true); }},'Save'),
+      ));
+    }
+    bg.appendChild(m);
+    document.body.appendChild(bg);
+    _currentModal = bg;
+  });
+}
+function closeModal() {
+  if (_currentModal) { _currentModal.remove(); _currentModal = null; }
+}
+
+// ============================================================================
+// UTIL
+// ============================================================================
+function currentRole() {
+  return state.tenants.find(t => t.id === state.activeTenantId)?.role;
+}
+
+// ============================================================================
+// LOGIN / SETUP
+// ============================================================================
+function renderSetup() {
+  document.body.innerHTML = '';
+  document.body.appendChild(el('div',{class:'center-screen'},
+    el('div',{class:'center-card'},
+      el('h1',{html:'Back<span class="dot">·</span>bar'}),
+      el('div',{class:'tag'}, 'Setup required'),
+      el('p',{style:{fontSize:'14px',marginBottom:'12px'}},
+        'Configure Supabase keys in the HTML file at the top, under ',
+        el('code',{}, 'SUPABASE_CONFIG'),
+        ' before you can log in.'),
+      el('div',{class:'help'},
+        '1. Create a project at ', el('a',{href:'https://supabase.com',target:'_blank'},'supabase.com'), el('br'),
+        '2. Run ', el('code',{},'schema.sql'), ' and ', el('code',{},'seed.sql'), ' in the SQL Editor', el('br'),
+        '3. Create user via Authentication > Users', el('br'),
+        '4. Add ', el('code',{},'memberships'), ' row with admin role', el('br'),
+        '5. Replace ', el('code',{},'YOUR-PROJECT'), ' and ', el('code',{},'YOUR-ANON-KEY-HERE'), ' in this file', el('br'),
+      ),
+    )
+  ));
+}
+
+function renderLogin() {
+  document.body.innerHTML = '';
+  document.body.appendChild(el('div',{id:'toasts',class:'toasts'}));
+  const errBox = el('div',{class:'err',style:{display:'none'}});
+  const email = el('input',{class:'input',type:'email',placeholder:'your@email.com'});
+  const pw = el('input',{class:'input',type:'password',placeholder:'••••••••'});
+
+  const onLogin = async () => {
+    errBox.style.display = 'none';
+    const { error } = await state.sb.auth.signInWithPassword({ email: email.value, password: pw.value });
+    if (error) { errBox.textContent = error.message; errBox.style.display = 'block'; return; }
+    await afterLogin();
+  };
+
+  document.body.appendChild(el('div',{class:'center-screen'},
+    el('div',{class:'center-card'},
+      el('h1',{html:'Back<span class="dot">·</span>bar'}),
+      el('div',{class:'tag'}, 'Tools for the bar'),
+      errBox,
+      el('div',{class:'field'}, el('label',{},'Email'), email),
+      el('div',{class:'field'}, el('label',{},'Password'), pw),
+      el('button',{class:'btn',style:{width:'100%',marginTop:'6px'},onclick:onLogin},'Log in'),
+      el('div',{class:'help'},'Users are created manually by admin in Supabase. Contact your bar manager.'),
+    )
+  ));
+  pw.addEventListener('keydown', e => { if (e.key === 'Enter') onLogin(); });
+}
+
+function renderNoTenant() {
+  document.body.innerHTML = '';
+  document.body.appendChild(el('div',{class:'center-screen'},
+    el('div',{class:'center-card'},
+      el('h1',{html:'Back<span class="dot">·</span>bar'}),
+      el('div',{class:'tag'}, 'No access'),
+      el('p',{}, 'Your account is not linked to any bar. Contact your admin.'),
+      el('button',{class:'btn ghost',style:{marginTop:'12px'},onclick:async()=>{await state.sb.auth.signOut();}}, 'Log out'),
+    )
+  ));
+}
+
+// ---- start ----
+boot().catch(e => { console.error(e); toast('Boot error: ' + e.message, 'bad'); });
 </script>
-
 </body>
 </html>
