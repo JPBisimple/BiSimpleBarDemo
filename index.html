@@ -913,6 +913,12 @@ function renderPreps(v) {
     });
     v.appendChild(c);
   });
+
+  if (currentRole() === 'admin') {
+    v.appendChild(el('div',{class:'btn-row',style:{marginTop:'12px'}},
+      el('button',{class:'btn', onclick:() => openPrepEditor(null)},'+ New prep'),
+    ));
+  }
 }
 
 function renderPrepDetail(v, id) {
@@ -990,9 +996,12 @@ function renderPrepDetail(v, id) {
     v.appendChild(proc);
   }
 
-  v.appendChild(el('div',{class:'btn-row no-print', style:{marginTop:'12px'}},
-    el('button',{class:'btn ghost', onclick:() => window.print()},'🖨 Print'),
-  ));
+  const btnRow = el('div',{class:'btn-row no-print', style:{marginTop:'12px'}});
+  btnRow.appendChild(el('button',{class:'btn ghost', onclick:() => window.print()},'🖨 Print'));
+  if (currentRole() === 'admin') {
+    btnRow.appendChild(el('button',{class:'btn', onclick:() => openPrepEditor(p)},'Edit prep'));
+  }
+  v.appendChild(btnRow);
 }
 
 // ============================================================================
@@ -1404,57 +1413,6 @@ function renderGuestShift(v) {
 }
 
 // ============================================================================
-// COCKTAIL EDITOR (minimal — full editor er stort scope)
-// ============================================================================
-async function openCocktailEditor(c) {
-  const isNew = !c;
-  const f = c ? { ...c } : {
-    name:'', menu_wording:'', flavour_profile:'', allergens:'',
-    glassware:'', ice:'', garnish:'', tools:'', procedure:'',
-    alcohol_percent:null, sell_price:null, is_active:true,
-  };
-  const form = el('div');
-  const fld = (label,key,type='text') => {
-    const id = 'ce_' + key;
-    const inp = el(type==='textarea'?'textarea':'input',{
-      class:'input', id, value:f[key]??'', ...(type!=='textarea'?{type}:{}),
-      oninput:e=>f[key] = type==='number' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value,
-    });
-    form.appendChild(el('div',{class:'field'}, el('label',{for:id},label), inp));
-  };
-  fld('Name','name');
-  fld('Menu wording','menu_wording','textarea');
-  fld('Flavour profile','flavour_profile','textarea');
-  fld('Allergens','allergens','textarea');
-  fld('Glass','glassware');
-  fld('Ice','ice');
-  fld('Garnish','garnish');
-  fld('Tools','tools');
-  fld('Procedure','procedure','textarea');
-  fld('Alcohol %','alcohol_percent','number');
-  fld('Sell price (DKK)','sell_price','number');
-
-  form.appendChild(el('div',{style:{fontSize:'12px',color:'var(--ink-mute)',marginTop:'8px'}},
-    'Components are not edited here yet — only via SQL/seed for now.'));
-
-  await modal(isNew?'New cocktail':'Edit cocktail', form, async () => {
-    if (!f.name) return toast('Name required','bad');
-    const payload = { ...f, tenant_id: state.activeTenantId };
-    delete payload.id; delete payload.created_at;
-    const q = isNew
-      ? state.sb.from('cocktails').insert(payload).select().single()
-      : state.sb.from('cocktails').update(payload).eq('id', c.id).select().single();
-    const { data, error } = await q;
-    if (error) return toast(error.message, 'bad');
-    if (isNew) state.data.cocktails.push(data);
-    else Object.assign(c, data);
-    toast('Saved','ok');
-    renderRoute();
-    return true;
-  });
-}
-
-// ============================================================================
 // TENANT SETTINGS (currency, locale)
 // ============================================================================
 const COMMON_CURRENCIES = [
@@ -1533,6 +1491,335 @@ async function openTenantSettings() {
     t.locale = payload.locale;
     toast('Settings saved','ok');
     renderApp();
+    return true;
+  });
+}
+
+// ============================================================================
+// COCKTAIL EDITOR (admin)
+// ============================================================================
+async function openCocktailEditor(cocktail) {
+  const isNew = !cocktail;
+  const f = cocktail ? { ...cocktail } : {
+    name:'', menu_wording:'', flavour_profile:'', allergens:'',
+    glassware:'', ice:'', garnish:'', tools:'', procedure:'',
+    alcohol_percent:'', sell_price:'', is_active: true,
+  };
+
+  // Component rows: {type:'ingredient'|'prep', id, quantity, unit}
+  let compRows = [];
+  if (!isNew) {
+    compRows = state.data.cocktail_components
+      .filter(c => c.cocktail_id === cocktail.id)
+      .map(c => ({
+        type: c.ingredient_id ? 'ingredient' : 'prep',
+        id: c.ingredient_id || c.prep_id,
+        quantity: c.quantity,
+        unit: c.unit,
+        _db_id: c.id,
+      }));
+  }
+
+  const form = el('div');
+
+  // Basic fields
+  function fld(label, key, type='text', extra={}) {
+    const inp = el(type==='textarea' ? 'textarea' : 'input',
+      Object.assign({ class:'input', value: f[key] ?? '', ...(type!=='textarea'?{type}:{}),
+        oninput: e => f[key] = type==='number' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value
+      }, extra));
+    form.appendChild(el('div',{class:'field'}, el('label',{},label), inp));
+  }
+  fld('Name','name');
+  fld('Menu wording','menu_wording');
+  fld('Flavour profile','flavour_profile','textarea');
+  fld('Allergens','allergens','textarea');
+  fld('Glassware','glassware');
+  fld('Ice','ice');
+  fld('Garnish','garnish');
+  fld('Tools','tools');
+  fld('Procedure','procedure','textarea');
+  fld('ABV %','alcohol_percent','number');
+  fld('Sell price','sell_price','number');
+
+  // Active toggle
+  const activeChk = el('input',{type:'checkbox', style:{marginRight:'6px'}});
+  activeChk.checked = f.is_active !== false;
+  activeChk.addEventListener('change', () => f.is_active = activeChk.checked);
+  form.appendChild(el('div',{class:'field'},
+    el('label',{style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer'}},
+      activeChk, 'Active on menu'),
+  ));
+
+  // -- Components section --
+  const compSection = el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}});
+  compSection.appendChild(el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--ink-mute)',fontWeight:600,marginBottom:'10px'}}, 'Recipe components'));
+
+  const compList = el('div');
+  compSection.appendChild(compList);
+
+  function renderCompRows() {
+    compList.innerHTML = '';
+    compRows.forEach((row, idx) => {
+      const typeSel = el('select',{class:'input',style:{minWidth:'110px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
+      ['ingredient','prep'].forEach(t => {
+        const o = el('option',{value:t}, t==='ingredient'?'Ingredient':'Prep');
+        if (t === row.type) o.selected = true;
+        typeSel.appendChild(o);
+      });
+
+      const idSel = el('select',{class:'input',style:{flex:1,padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
+      function populateIdSel(type) {
+        idSel.innerHTML = '';
+        const items = type === 'ingredient' ? state.data.ingredients : state.data.preps;
+        items.forEach(it => {
+          const o = el('option',{value:it.id}, it.name);
+          if (it.id === row.id) o.selected = true;
+          idSel.appendChild(o);
+        });
+        if (!row.id && items.length) row.id = items[0].id;
+      }
+      populateIdSel(row.type);
+
+      typeSel.addEventListener('change', () => {
+        row.type = typeSel.value;
+        row.id = null;
+        populateIdSel(row.type);
+      });
+      idSel.addEventListener('change', () => row.id = idSel.value);
+
+      const qtyInp = el('input',{class:'input',type:'number',min:'0',step:'0.1',
+        value:String(row.quantity||''), placeholder:'Qty',
+        style:{width:'72px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'},
+        oninput:e=>row.quantity=e.target.value===''?null:Number(e.target.value)});
+
+      const unitInp = el('input',{class:'input',type:'text',
+        value:row.unit||'', placeholder:'ml',
+        style:{width:'56px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'},
+        oninput:e=>row.unit=e.target.value});
+
+      const delBtn = el('button',{class:'btn ghost sm danger',style:{minHeight:'38px'},
+        onclick:()=>{ compRows.splice(idx,1); renderCompRows(); }}, '✕');
+
+      compList.appendChild(el('div',{style:{display:'flex',gap:'6px',alignItems:'center',marginBottom:'6px',flexWrap:'wrap'}},
+        typeSel, idSel, qtyInp, unitInp, delBtn,
+      ));
+    });
+  }
+  renderCompRows();
+
+  compSection.appendChild(el('button',{class:'btn ghost sm',style:{marginTop:'4px'},
+    onclick:()=>{ compRows.push({type:'ingredient',id:state.data.ingredients[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
+    '+ Add component'));
+  form.appendChild(compSection);
+
+  await modal(isNew ? 'New cocktail' : 'Edit: ' + cocktail.name, form, async () => {
+    if (!f.name) return toast('Name required','bad');
+
+    const payload = {
+      tenant_id: state.activeTenantId,
+      name: f.name, menu_wording: f.menu_wording||null,
+      flavour_profile: f.flavour_profile||null, allergens: f.allergens||null,
+      glassware: f.glassware||null, ice: f.ice||null, garnish: f.garnish||null,
+      tools: f.tools||null, procedure: f.procedure||null,
+      alcohol_percent: f.alcohol_percent||null, sell_price: f.sell_price||null,
+      is_active: f.is_active,
+    };
+
+    let cocktailId;
+    if (isNew) {
+      const { data, error } = await state.sb.from('cocktails').insert(payload).select().single();
+      if (error) return toast(error.message,'bad');
+      state.data.cocktails.push(data);
+      cocktailId = data.id;
+    } else {
+      const { error } = await state.sb.from('cocktails').update(payload).eq('id', cocktail.id);
+      if (error) return toast(error.message,'bad');
+      Object.assign(cocktail, payload);
+      cocktailId = cocktail.id;
+      // Delete existing components
+      await state.sb.from('cocktail_components').delete().eq('cocktail_id', cocktailId);
+      state.data.cocktail_components = state.data.cocktail_components.filter(c => c.cocktail_id !== cocktailId);
+    }
+
+    // Insert components
+    for (const row of compRows) {
+      if (!row.id || !row.quantity || !row.unit) continue;
+      const cp = {
+        cocktail_id: cocktailId,
+        tenant_id: state.activeTenantId,
+        quantity: row.quantity,
+        unit: row.unit,
+        ingredient_id: row.type === 'ingredient' ? row.id : null,
+        prep_id: row.type === 'prep' ? row.id : null,
+      };
+      const { data: cd, error: ce } = await state.sb.from('cocktail_components').insert(cp).select().single();
+      if (ce) toast('Component error: ' + ce.message,'bad');
+      else state.data.cocktail_components.push(cd);
+    }
+
+    toast('Saved','ok');
+    renderRoute();
+    return true;
+  });
+}
+
+// ============================================================================
+// PREP EDITOR (admin)
+// ============================================================================
+async function openPrepEditor(prep) {
+  const isNew = !prep;
+  const f = prep ? { ...prep } : {
+    name:'', type:'PREMIX', yield_quantity:'', yield_unit:'ml',
+    procedure:'', shelf_life:'',
+  };
+
+  let compRows = [];
+  if (!isNew) {
+    compRows = state.data.prep_components
+      .filter(c => c.prep_id === prep.id)
+      .map(c => ({
+        type: c.ingredient_id ? 'ingredient' : 'prep',
+        id: c.ingredient_id || c.child_prep_id,
+        quantity: c.quantity,
+        unit: c.unit,
+      }));
+  }
+
+  const form = el('div');
+
+  function fld(label, key, type='text', extra={}) {
+    const inp = el(type==='textarea' ? 'textarea' : 'input',
+      Object.assign({ class:'input', value: f[key] ?? '', ...(type!=='textarea'?{type}:{}),
+        oninput: e => f[key] = type==='number' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value
+      }, extra));
+    form.appendChild(el('div',{class:'field'}, el('label',{},label), inp));
+  }
+
+  fld('Name','name');
+
+  // Type select
+  const typeSel = el('select',{class:'input', onchange:e=>f.type=e.target.value});
+  ['PREMIX','BATCH','SYRUP','INFUSION','CORDIAL'].forEach(t => {
+    const o = el('option',{value:t},t); if (t===f.type) o.selected=true; typeSel.appendChild(o);
+  });
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Type'), typeSel));
+
+  fld('Yield quantity','yield_quantity','number');
+  fld('Yield unit','yield_unit');
+  fld('Procedure','procedure','textarea');
+  fld('Shelf life','shelf_life','textarea');
+
+  // -- Components --
+  const compSection = el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}});
+  compSection.appendChild(el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--ink-mute)',fontWeight:600,marginBottom:'10px'}}, 'Components'));
+
+  const compList = el('div');
+  compSection.appendChild(compList);
+
+  function renderCompRows() {
+    compList.innerHTML = '';
+    compRows.forEach((row, idx) => {
+      const srcTypeSel = el('select',{class:'input',style:{minWidth:'110px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
+      ['ingredient','prep'].forEach(t => {
+        const o = el('option',{value:t}, t==='ingredient'?'Ingredient':'Prep');
+        if (t === row.type) o.selected = true;
+        srcTypeSel.appendChild(o);
+      });
+
+      const idSel = el('select',{class:'input',style:{flex:1,padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
+      function populateIdSel(type) {
+        idSel.innerHTML = '';
+        // For prep type, exclude the prep being edited to avoid self-reference
+        const items = type === 'ingredient'
+          ? state.data.ingredients
+          : state.data.preps.filter(p => isNew || p.id !== prep.id);
+        items.forEach(it => {
+          const o = el('option',{value:it.id}, it.name);
+          if (it.id === row.id) o.selected = true;
+          idSel.appendChild(o);
+        });
+        if (!row.id && items.length) row.id = items[0].id;
+      }
+      populateIdSel(row.type);
+
+      srcTypeSel.addEventListener('change', () => {
+        row.type = srcTypeSel.value;
+        row.id = null;
+        populateIdSel(row.type);
+      });
+      idSel.addEventListener('change', () => row.id = idSel.value);
+
+      const qtyInp = el('input',{class:'input',type:'number',min:'0',step:'0.1',
+        value:String(row.quantity||''), placeholder:'Qty',
+        style:{width:'72px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'},
+        oninput:e=>row.quantity=e.target.value===''?null:Number(e.target.value)});
+
+      const unitInp = el('input',{class:'input',type:'text',
+        value:row.unit||'', placeholder:'ml',
+        style:{width:'56px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'},
+        oninput:e=>row.unit=e.target.value});
+
+      const delBtn = el('button',{class:'btn ghost sm danger',style:{minHeight:'38px'},
+        onclick:()=>{ compRows.splice(idx,1); renderCompRows(); }}, '✕');
+
+      compList.appendChild(el('div',{style:{display:'flex',gap:'6px',alignItems:'center',marginBottom:'6px',flexWrap:'wrap'}},
+        srcTypeSel, idSel, qtyInp, unitInp, delBtn,
+      ));
+    });
+  }
+  renderCompRows();
+
+  compSection.appendChild(el('button',{class:'btn ghost sm',style:{marginTop:'4px'},
+    onclick:()=>{ compRows.push({type:'ingredient',id:state.data.ingredients[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
+    '+ Add component'));
+  form.appendChild(compSection);
+
+  await modal(isNew ? 'New prep' : 'Edit: ' + prep.name, form, async () => {
+    if (!f.name) return toast('Name required','bad');
+    if (!f.yield_quantity) return toast('Yield quantity required','bad');
+
+    const payload = {
+      tenant_id: state.activeTenantId,
+      name: f.name, type: f.type,
+      yield_quantity: f.yield_quantity, yield_unit: f.yield_unit||'ml',
+      procedure: f.procedure||null, shelf_life: f.shelf_life||null,
+    };
+
+    let prepId;
+    if (isNew) {
+      const { data, error } = await state.sb.from('preps').insert(payload).select().single();
+      if (error) return toast(error.message,'bad');
+      state.data.preps.push(data);
+      prepId = data.id;
+    } else {
+      const { error } = await state.sb.from('preps').update(payload).eq('id', prep.id);
+      if (error) return toast(error.message,'bad');
+      Object.assign(prep, payload);
+      prepId = prep.id;
+      // Delete existing components
+      await state.sb.from('prep_components').delete().eq('prep_id', prepId);
+      state.data.prep_components = state.data.prep_components.filter(c => c.prep_id !== prepId);
+    }
+
+    // Insert components
+    for (const row of compRows) {
+      if (!row.id || !row.quantity || !row.unit) continue;
+      const cp = {
+        prep_id: prepId,
+        tenant_id: state.activeTenantId,
+        quantity: row.quantity,
+        unit: row.unit,
+        ingredient_id: row.type === 'ingredient' ? row.id : null,
+        child_prep_id: row.type === 'prep' ? row.id : null,
+      };
+      const { data: cd, error: ce } = await state.sb.from('prep_components').insert(cp).select().single();
+      if (ce) toast('Component error: ' + ce.message,'bad');
+      else state.data.prep_components.push(cd);
+    }
+
+    toast('Saved','ok');
+    renderRoute();
     return true;
   });
 }
