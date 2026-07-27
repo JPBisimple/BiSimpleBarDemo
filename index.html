@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#5E0E26">
-<title>Rezypedia</title>
+<title>rezypedia.com</title>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-title" content="Rezypedia">
-<meta name="apple-mobile-web-app-title" content="Rezypedia">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="rezypedia.com">  
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap">
@@ -280,7 +280,7 @@ textarea.input{min-height:88px;resize:vertical}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ============================================================================
-// REZYPEDIA — single-file app
+// REZYPEDIA.COM — single-file app
 // ============================================================================
 
 const SUPABASE_CONFIG = {
@@ -542,7 +542,7 @@ function renderApp() {
 function renderTopbar() {
   const t = state.tenants.find(x => x.id === state.activeTenantId);
   const brand = el('div', { class: 'brand' });
-  brand.innerHTML = `Rezy<span class="dot">·</span>Pedia`;
+  brand.innerHTML = `rezy<span class="dot">·</span>pedia`;
 
   const switcher = el('div', { class: 'tenant-switch' });
   if (state.tenants.length > 1) {
@@ -1874,7 +1874,7 @@ function renderSetup() {
   document.body.innerHTML = '';
   document.body.appendChild(el('div',{class:'center-screen'},
     el('div',{class:'center-card'},
-      el('h1',{html:'Rezy<span class="dot">·</span>Pedia'}),
+      el('h1',{html:'rezy<span class="dot">·</span>pedia'}),
       el('div',{class:'tag'}, 'Setup required'),
       el('p',{style:{fontSize:'14px',marginBottom:'12px'}},
         'Configure Supabase keys in the HTML file at the top, under ',
@@ -1907,7 +1907,7 @@ function renderLogin() {
 
   document.body.appendChild(el('div',{class:'center-screen'},
     el('div',{class:'center-card'},
-      el('h1',{html:'Rezy<span class="dot">·</span>Pedia'}),
+      el('h1',{html:'rezy<span class="dot">·</span>pedia'}),
       el('div',{class:'tag'}, 'Tools for the bar'),
       errBox,
       el('div',{class:'field'}, el('label',{},'Email'), email),
@@ -1923,7 +1923,7 @@ function renderNoTenant() {
   document.body.innerHTML = '';
   document.body.appendChild(el('div',{class:'center-screen'},
     el('div',{class:'center-card'},
-      el('h1',{html:'Rezy<span class="dot">·</span>Pedia'}),
+      el('h1',{html:'rezy<span class="dot">·</span>pedia'}),
       el('div',{class:'tag'}, 'No access'),
       el('p',{}, 'Your account is not linked to any bar. Contact your admin.'),
       el('button',{class:'btn ghost',style:{marginTop:'12px'},onclick:async()=>{await state.sb.auth.signOut();}}, 'Log out'),
