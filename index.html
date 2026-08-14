@@ -259,6 +259,18 @@ textarea.input{min-height:88px;resize:vertical}
 .gs-cocktail .gs-grid b{color:var(--ink-mute);text-transform:uppercase;letter-spacing:.06em;font-size:10px;font-weight:600;display:block}
 .gs-cocktail .gs-allerg{margin-top:10px;font-size:11px;color:var(--ink-mute);font-style:italic;border-top:1px solid var(--line);padding-top:8px}
 
+/* ===== HOME HUB ===== */
+.hub{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.hub-btn{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow-1);padding:22px 14px;min-height:110px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  transition:transform .08s, box-shadow .15s;
+}
+.hub-btn:active{transform:translateY(1px)}
+.hub-btn .ic{font-size:28px;color:var(--primary)}
+.hub-btn .lb{font-family:var(--display-font);font-weight:700;font-size:18px;color:var(--ink)}
+
 /* ===== PRINT ===== */
 @media print{
   .topbar,.bottomnav,.no-print{display:none !important}
@@ -570,8 +582,9 @@ function renderTopbar() {
 }
 
 function renderNav() {
+  const isHome = !location.hash || location.hash === '#index';
   const items = [
-    { hash: '#index',     ic: '◐', label: 'Index' },
+    { hash: '#index',     ic: '⌂', label: 'Home' },
     { hash: '#cocktails', ic: '☐', label: 'Cocktails' },
     { hash: '#prep',      ic: '⌬', label: 'Prep' },
     { hash: '#inventory', ic: '☰', label: 'Inventory' },
@@ -589,6 +602,7 @@ function renderNav() {
     );
     nav.appendChild(btn);
   });
+  nav.style.display = isHome ? 'none' : '';
   return nav;
 }
 
@@ -624,84 +638,30 @@ function renderRoute() {
 }
 
 // ============================================================================
-// INDEX
+// HOME (hub)
 // ============================================================================
 function renderIndex(v) {
   const t = state.tenants.find(x => x.id === state.activeTenantId);
-  const ings = state.data.ingredients;
-  const preps = state.data.preps;
-  const cocks = state.data.cocktails;
-  const activeC = cocks.filter(c => c.is_active);
-  const lowStock = ings.filter(i => (i.current_stock || 0) < (i.min_stock || 0));
-  const noPrice = ings.filter(i => !i.purchase_price);
-
   v.appendChild(el('div', { class: 'section-hd' },
     el('h1', {}, t?.name || 'Bar'),
     el('div', { class: 'rule' }),
     el('div', { class: 'sub' }, t?.city || ''),
   ));
-
-  const stats = el('div', { class: 'stats' });
-  stats.appendChild(el('div', { class: 'stat' },
-    el('div', { class: 'lab' }, 'Active cocktails'),
-    el('div', { class: 'num' }, String(activeC.length)),
-  ));
-  stats.appendChild(el('div', { class: 'stat' },
-    el('div', { class: 'lab' }, 'Preps'),
-    el('div', { class: 'num s' }, String(preps.length)),
-  ));
-  stats.appendChild(el('div', { class: 'stat' },
-    el('div', { class: 'lab' }, 'Ingredients'),
-    el('div', { class: 'num a' }, String(ings.length)),
-  ));
-  v.appendChild(stats);
-
-  // Low stock card
-  v.appendChild((() => {
-    const c = el('div', { class: 'card' });
-    c.appendChild(el('div', { class: 'card-hd' },
-      el('h2', {}, 'Low stock'),
-      el('span', { class: 'chip bad' }, String(lowStock.length)),
+  const items = [
+    { hash: '#cocktails', ic: '☐', label: 'Cocktails' },
+    { hash: '#prep',      ic: '⌬', label: 'Prep' },
+    { hash: '#inventory', ic: '☰', label: 'Inventory' },
+    { hash: '#orders',    ic: '↗', label: 'Orders' },
+    { hash: '#guest',     ic: '✦', label: 'Service' },
+  ];
+  const hub = el('div', { class: 'hub' });
+  items.forEach(it => {
+    hub.appendChild(el('button', { class: 'hub-btn', onclick: () => location.hash = it.hash },
+      el('span', { class: 'ic' }, it.ic),
+      el('span', { class: 'lb' }, it.label),
     ));
-    if (lowStock.length === 0) {
-      c.appendChild(el('div', { class: 'card-bd', style: { color: 'var(--ink-mute)', fontSize: '13px' } }, 'Everything stocked. Cheers.'));
-    } else {
-      lowStock.slice(0, 8).forEach(i => {
-        c.appendChild(el('div', { class: 'row click', onclick: () => location.hash = '#inventory' },
-          el('div', { class: 'grow' },
-            el('div', { class: 'ttl' }, i.name),
-            el('div', { class: 'sb' }, `${i.category || ''} · min ${i.min_stock || 0} ${i.purchase_unit || ''}`),
-          ),
-          el('div', { class: 'right' },
-            el('span', { class: 'chip bad' }, `${i.current_stock || 0} ${i.purchase_unit || ''}`),
-          ),
-        ));
-      });
-    }
-    return c;
-  })());
-
-  // Missing price card
-  v.appendChild((() => {
-    const c = el('div', { class: 'card' });
-    c.appendChild(el('div', { class: 'card-hd' },
-      el('h2', {}, 'Missing price'),
-      el('span', { class: 'chip warn' }, String(noPrice.length)),
-    ));
-    if (noPrice.length === 0) {
-      c.appendChild(el('div', { class: 'card-bd', style: { color: 'var(--ink-mute)', fontSize: '13px' } }, 'All ingredients priced.'));
-    } else {
-      noPrice.slice(0, 8).forEach(i => {
-        c.appendChild(el('div', { class: 'row click', onclick: () => location.hash = '#inventory' },
-          el('div', { class: 'grow' },
-            el('div', { class: 'ttl' }, i.name),
-            el('div', { class: 'sb' }, i.supplier || '—'),
-          ),
-        ));
-      });
-    }
-    return c;
-  })());
+  });
+  v.appendChild(hub);
 }
 
 // ============================================================================
