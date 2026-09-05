@@ -943,37 +943,99 @@ function renderPreps(v) {
     el('div',{class:'sub'}, `${state.data.preps.length} items`),
   ));
 
-  const types = ['PREMIX','BATCH','SYRUP','INFUSION','CORDIAL'];
-  const byType = {};
-  types.forEach(t => byType[t] = state.data.preps.filter(p => p.type === t));
+  const q = el('input',{class:'search',placeholder:'Search prep or ingredient…',oninput:()=>render()});
+  v.appendChild(q);
 
-  types.forEach(t => {
-    const arr = byType[t];
-    if (arr.length === 0) return;
-    const c = el('div',{class:'card'});
-    c.appendChild(el('div',{class:'card-hd'},
-      el('h2',{}, t.charAt(0) + t.slice(1).toLowerCase()),
-      el('span',{class:'chip'}, String(arr.length)),
-    ));
-    arr.forEach(p => {
-      c.appendChild(el('div',{class:'row click', onclick:() => location.hash = '#prep/' + p.id},
-        el('div',{class:'grow'},
-          el('div',{class:'ttl'}, p.name),
-          el('div',{class:'sb'}, `Yield: ${num(p.yield_quantity)} ${p.yield_unit}`),
-        ),
-        el('div',{class:'right'},
-          el('span',{class:'chip s'}, p.shelf_life ? p.shelf_life.split('.')[0].slice(0,28) : ''),
-        ),
-      ));
-    });
-    v.appendChild(c);
-  });
+  const body = el('div');
+  v.appendChild(body);
 
   if (currentRole() === 'admin') {
     v.appendChild(el('div',{class:'btn-row',style:{marginTop:'12px'}},
       el('button',{class:'btn', onclick:() => openPrepEditor(null)},'+ New prep'),
     ));
   }
+
+  // Navnene på det en prep indeholder — ingredienser og child-preps
+  function componentNames(prepId) {
+    return state.data.prep_components
+      .filter(c => c.prep_id === prepId)
+      .map(c => {
+        if (c.ingredient_id) return state.data.ingredients.find(i => i.id === c.ingredient_id)?.name;
+        if (c.child_prep_id) return state.data.preps.find(p => p.id === c.child_prep_id)?.name;
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  function render() {
+    const term = q.value.toLowerCase().trim();
+    body.innerHTML = '';
+
+    let preps = state.data.preps;
+    if (term) {
+      preps = preps.filter(p =>
+        (p.name||'').toLowerCase().includes(term) ||
+        componentNames(p.id).some(n => n.toLowerCase().includes(term))
+      );
+    }
+
+    const types = ['PREMIX','BATCH','SYRUP','INFUSION','CORDIAL'];
+    let shown = 0;
+
+    types.forEach(t => {
+      const arr = preps.filter(p => p.type === t);
+      if (arr.length === 0) return;   // tomme grupper skjules
+      shown += arr.length;
+      const c = el('div',{class:'card'});
+      c.appendChild(el('div',{class:'card-hd'},
+        el('h2',{}, t.charAt(0) + t.slice(1).toLowerCase()),
+        el('span',{class:'chip'}, String(arr.length)),
+      ));
+      arr.forEach(p => {
+        // Vis hvilken ingrediens der gav match, hvis det ikke var navnet
+        let hint = null;
+        if (term && !(p.name||'').toLowerCase().includes(term)) {
+          const hits = componentNames(p.id).filter(n => n.toLowerCase().includes(term));
+          if (hits.length) hint = 'contains: ' + hits.slice(0,3).join(', ');
+        }
+        c.appendChild(el('div',{class:'row click', onclick:() => location.hash = '#prep/' + p.id},
+          el('div',{class:'grow'},
+            el('div',{class:'ttl'}, p.name),
+            el('div',{class:'sb'}, hint || `Yield: ${num(p.yield_quantity)} ${p.yield_unit}`),
+          ),
+          el('div',{class:'right'},
+            el('span',{class:'chip s'}, p.shelf_life ? p.shelf_life.split('.')[0].slice(0,28) : ''),
+          ),
+        ));
+      });
+      body.appendChild(c);
+    });
+
+    // Preps uden kendt type ville ellers forsvinde helt
+    const other = preps.filter(p => !types.includes(p.type));
+    if (other.length) {
+      shown += other.length;
+      const c = el('div',{class:'card'});
+      c.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Other'), el('span',{class:'chip'}, String(other.length))));
+      other.forEach(p => {
+        c.appendChild(el('div',{class:'row click', onclick:() => location.hash = '#prep/' + p.id},
+          el('div',{class:'grow'},
+            el('div',{class:'ttl'}, p.name),
+            el('div',{class:'sb'}, `Yield: ${num(p.yield_quantity)} ${p.yield_unit}`),
+          ),
+        ));
+      });
+      body.appendChild(c);
+    }
+
+    if (shown === 0) {
+      body.appendChild(el('div',{class:'empty'},
+        el('div',{class:'big'},'No preps'),
+        el('div',{}, term ? 'Nothing matches that search.' : 'Create your first prep.'),
+      ));
+    }
+  }
+  render();
 }
 
 function renderPrepDetail(v, id) {
@@ -1560,7 +1622,10 @@ function renderMenus(v) {
           m.is_active === false ? el('span',{class:'chip warn',style:{marginLeft:'6px'}},'INACTIVE') : null),
         el('div',{class:'sb'}, count === 1 ? '1 cocktail' : `${count} cocktails`),
       ),
-      el('div',{class:'right'}, el('span',{class:'chip s'},'Edit')),
+      el('div',{class:'right',style:{display:'flex',gap:'6px',alignItems:'center'}},
+        el('button',{class:'btn sm',onclick:e=>{ e.stopPropagation(); openMenuCocktailPicker(m); }},'Cocktails'),
+        el('span',{class:'chip s'},'Edit'),
+      ),
     );
   };
 
@@ -1710,6 +1775,83 @@ async function openMenuEditor(menu) {
   });
 }
 
+async function openMenuCocktailPicker(menu) {
+  const selected = new Set(cocktailIdsOnMenu(menu.id));
+  const form = el('div');
+
+  const counter = el('div',{class:'sb',style:{marginBottom:'8px'}});
+  const updateCounter = () => {
+    counter.textContent = `${selected.size} of ${state.data.cocktails.length} cocktails selected`;
+  };
+
+  const q = el('input',{class:'input',placeholder:'Search cocktail…',oninput:()=>renderList()});
+  form.appendChild(el('div',{class:'field'}, q));
+  form.appendChild(counter);
+
+  form.appendChild(el('div',{class:'btn-row',style:{marginBottom:'10px'}},
+    el('button',{class:'btn ghost sm',onclick:()=>{ shown().forEach(c=>selected.add(c.id)); renderList(); }},'Select all shown'),
+    el('button',{class:'btn ghost sm',onclick:()=>{ selected.clear(); renderList(); }},'Clear all'),
+  ));
+
+  const list = el('div',{style:{maxHeight:'46vh',overflowY:'auto',borderTop:'1px solid var(--line)'}});
+  form.appendChild(list);
+
+  function shown() {
+    const term = q.value.toLowerCase().trim();
+    if (!term) return state.data.cocktails;
+    return state.data.cocktails.filter(c =>
+      (c.name||'').toLowerCase().includes(term) ||
+      (c.menu_wording||'').toLowerCase().includes(term));
+  }
+
+  function renderList() {
+    updateCounter();
+    list.innerHTML = '';
+    const rows = shown();
+    if (!rows.length) {
+      list.appendChild(el('div',{class:'sb',style:{padding:'12px 2px'}},'No cocktails match.'));
+      return;
+    }
+    rows.forEach(c => {
+      const chk = el('input',{type:'checkbox',style:{marginRight:'8px',flexShrink:0}});
+      chk.checked = selected.has(c.id);
+      chk.addEventListener('change',()=>{
+        chk.checked ? selected.add(c.id) : selected.delete(c.id);
+        updateCounter();
+      });
+      list.appendChild(el('label',{style:{display:'flex',alignItems:'flex-start',gap:'4px',
+        cursor:'pointer',padding:'8px 2px',borderBottom:'1px solid var(--line)'}},
+        chk,
+        el('div',{},
+          el('div',{style:{fontWeight:600,fontSize:'13px'}}, c.name,
+            c.is_active === false ? el('span',{class:'chip warn',style:{marginLeft:'6px'}},'INACTIVE') : null),
+          c.menu_wording ? el('div',{class:'sb'}, c.menu_wording) : null,
+        ),
+      ));
+    });
+  }
+  renderList();
+
+  await modal('Cocktails on: ' + menu.name, form, async () => {
+    const { error: delErr } = await state.sb.from('menu_cocktails').delete().eq('menu_id', menu.id);
+    if (delErr) return toast(delErr.message,'bad');
+    state.data.menu_cocktails = state.data.menu_cocktails.filter(mc => mc.menu_id !== menu.id);
+
+    const ordered = state.data.cocktails.filter(c => selected.has(c.id));
+    const rows = ordered.map((c,i) => ({
+      tenant_id: state.activeTenantId, menu_id: menu.id, cocktail_id: c.id, sort_order: i,
+    }));
+    if (rows.length) {
+      const { data, error } = await state.sb.from('menu_cocktails').insert(rows).select();
+      if (error) return toast(error.message,'bad');
+      state.data.menu_cocktails.push(...(data || []));
+    }
+    toast(`${rows.length} cocktails on ${menu.name}`,'ok');
+    renderRoute();
+    return true;
+  });
+}
+
 // ============================================================================
 // TENANT SETTINGS (currency, locale)
 // ============================================================================
@@ -1796,6 +1938,81 @@ async function openTenantSettings() {
 // ============================================================================
 // COCKTAIL EDITOR (admin)
 // ============================================================================
+// Lille inline-formular til at oprette en ingrediens uden at forlade editoren.
+// Kan ikke være en modal: modal() lukker den underliggende editor og
+// brugerens ikke-gemte arbejde ville gå tabt.
+function inlineIngredientCreator(onCreated) {
+  const wrap = el('div',{style:{marginTop:'6px'}});
+  const f = { name:'', category:'', purchase_size:null, purchase_unit:'ml', purchase_price:null };
+
+  const panel = el('div',{style:{display:'none',marginTop:'8px',padding:'10px',
+    border:'1px solid var(--line)',borderRadius:'6px',background:'var(--paper,transparent)'}});
+
+  const inp = (ph, key, type='text', w='100%') => el('input',{
+    class:'input', placeholder:ph, type, style:{minHeight:'36px',fontSize:'13px',width:w},
+    oninput: e => f[key] = type==='number' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value });
+
+  const nameI = inp('Ingredient name *','name');
+  const catI  = inp('Category','category');
+  const sizeI = inp('Purchase size *','purchase_size','number');
+  const unitI = inp('Unit *','purchase_unit');
+  unitI.value = f.purchase_unit;
+  const priceI = inp('Purchase price *','purchase_price','number');
+
+  panel.appendChild(el('div',{class:'field'}, nameI));
+  panel.appendChild(el('div',{class:'field'}, catI));
+  panel.appendChild(el('div',{style:{display:'flex',gap:'6px'}},
+    el('div',{style:{flex:1}}, sizeI),
+    el('div',{style:{width:'80px'}}, unitI),
+    el('div',{style:{flex:1}}, priceI),
+  ));
+  panel.appendChild(el('div',{class:'sb',style:{marginTop:'6px'}},
+    'Size and price are what you pay for one purchase unit — e.g. 700 ml for 189.'));
+
+  const createBtn = el('button',{class:'btn sm',style:{marginTop:'8px'},onclick:async()=>{
+    if (!f.name.trim()) return toast('Ingredient name required','bad');
+    if (!f.purchase_size || !f.purchase_unit || f.purchase_price == null)
+      return toast('Size, unit and price are required — otherwise cost cannot be calculated','bad');
+    createBtn.disabled = true;
+    const payload = {
+      tenant_id: state.activeTenantId,
+      name: f.name.trim(),
+      category: f.category.trim() || null,
+      purchase_size: f.purchase_size,
+      purchase_unit: f.purchase_unit.trim(),
+      purchase_price: f.purchase_price,
+    };
+    const { data, error } = await state.sb.from('ingredients').insert(payload).select().single();
+    createBtn.disabled = false;
+    if (error) {
+      return toast(error.message.includes('duplicate')
+        ? 'An ingredient with that name already exists' : error.message, 'bad');
+    }
+    state.data.ingredients.push(data);
+    state.data.ingredients.sort((a,b) =>
+      (a.category||'').localeCompare(b.category||'') || (a.name||'').localeCompare(b.name||''));
+    toast('Ingredient created','ok');
+    // Nulstil og luk panelet
+    f.name=''; f.category=''; f.purchase_size=null; f.purchase_price=null;
+    nameI.value=''; catI.value=''; sizeI.value=''; priceI.value='';
+    panel.style.display = 'none';
+    onCreated(data);
+  }},'Create ingredient');
+
+  panel.appendChild(el('div',{class:'btn-row'},
+    createBtn,
+    el('button',{class:'btn ghost sm',style:{marginTop:'8px'},
+      onclick:()=>{ panel.style.display='none'; }},'Cancel'),
+  ));
+
+  wrap.appendChild(el('button',{class:'btn ghost sm',
+    onclick:()=>{ panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+                  if (panel.style.display==='block') nameI.focus(); }},
+    '+ New ingredient'));
+  wrap.appendChild(panel);
+  return wrap;
+}
+
 async function openCocktailEditor(cocktail) {
   const isNew = !cocktail;
   const f = cocktail ? { ...cocktail } : {
@@ -1933,6 +2150,10 @@ async function openCocktailEditor(cocktail) {
   compSection.appendChild(el('button',{class:'btn ghost sm',style:{marginTop:'4px'},
     onclick:()=>{ compRows.push({type:'ingredient',id:state.data.ingredients[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
     '+ Add component'));
+  compSection.appendChild(inlineIngredientCreator(ing => {
+    compRows.push({ type:'ingredient', id: ing.id, quantity:null, unit: ing.purchase_unit || 'ml' });
+    renderCompRows();
+  }));
   form.appendChild(compSection);
 
   await modal(isNew ? 'New cocktail' : 'Edit: ' + cocktail.name, form, async () => {
@@ -2106,6 +2327,10 @@ async function openPrepEditor(prep) {
   compSection.appendChild(el('button',{class:'btn ghost sm',style:{marginTop:'4px'},
     onclick:()=>{ compRows.push({type:'ingredient',id:state.data.ingredients[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
     '+ Add component'));
+  compSection.appendChild(inlineIngredientCreator(ing => {
+    compRows.push({ type:'ingredient', id: ing.id, quantity:null, unit: ing.purchase_unit || 'ml' });
+    renderCompRows();
+  }));
   form.appendChild(compSection);
 
   await modal(isNew ? 'New prep' : 'Edit: ' + prep.name, form, async () => {
