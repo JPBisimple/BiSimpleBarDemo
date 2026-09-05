@@ -843,6 +843,8 @@ function renderRoute() {
     return;
   }
   if (h.startsWith('#cocktail/')) return renderCocktailDetail(v, h.split('/')[1]);
+  if (h.startsWith('#eventmenu/')) return renderEventMenu(v, h.split('/')[1]);
+  if (h.startsWith('#eventhost/')) return renderEventHostDoc(v, h.split('/')[1]);
   if (h.startsWith('#event/'))    return renderEventDetail(v, h.split('/')[1]);
   if (h.startsWith('#prep/'))     return renderPrepDetail(v, h.split('/')[1]);
   switch (h) {
@@ -1875,8 +1877,12 @@ function renderEventDetail(v, id) {
   v.appendChild(el('div',{class:'btn-row no-print',style:{marginBottom:'14px'}},
     el('button',{class:'btn ghost sm',onclick:()=>location.hash='#events'},'← All events'),
     isAdmin ? el('button',{class:'btn ghost sm',onclick:()=>openEventEditor(ev)},'Edit event') : null,
-    el('button',{class:'btn ghost sm',onclick:()=>window.print()},'🖨 Print'),
+    el('button',{class:'btn ghost sm',onclick:()=>location.hash='#eventmenu/'+ev.id},'Cocktail menu'),
+    el('button',{class:'btn ghost sm',onclick:()=>location.hash='#eventhost/'+ev.id},'Host document'),
+    el('button',{class:'btn ghost sm',onclick:()=>window.print()},'🖨 Print worksheet'),
   ));
+  if (isAdmin) v.appendChild(el('div',{class:'sb no-print',style:{marginBottom:'12px'}},
+    'The worksheet includes cost and margin — never send it to a customer or host. Use Cocktail menu or Host document for that.'));
 
   // ---- Cocktails ----
   const rows = state.data.event_cocktails
@@ -2159,6 +2165,110 @@ async function openEventCocktailPicker(ev) {
     renderRoute();
     return true;
   });
+}
+
+// ---- Udskrifter: gæstemenu og værtsdokument ----
+// Holdt adskilt fra arbejdsarket med vilje. Arbejdsarket viser kostpris og
+// margin; det må ikke havne hos en kunde eller en eventvært.
+
+function eventPrintHeader(v, ev, title, subtitle) {
+  const meta = [ev.event_date, ev.customer, ev.guest_count ? ev.guest_count + ' guests' : null]
+    .filter(Boolean).join(' · ');
+  v.appendChild(el('div',{class:'btn-row no-print',style:{marginBottom:'14px'}},
+    el('button',{class:'btn ghost sm',onclick:()=>location.hash='#event/'+ev.id},'← Back to event'),
+    el('button',{class:'btn',onclick:()=>window.print()},'🖨 Print / Save as PDF'),
+  ));
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{}, ev.name),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, meta || ''),
+  ));
+  v.appendChild(el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',
+    color:'var(--ink-mute)',fontWeight:600,marginBottom:'12px'}}, title));
+  if (subtitle) v.appendChild(el('div',{class:'sb',style:{marginBottom:'14px'}}, subtitle));
+}
+
+function renderEventMenu(v, id) {
+  const ev = eventById(id);
+  if (!ev) { v.appendChild(el('div',{class:'empty'},'Event not found.')); return; }
+  eventPrintHeader(v, ev, 'Cocktail menu', null);
+
+  const rows = state.data.event_cocktails
+    .filter(ec => ec.event_id === id)
+    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+
+  if (!rows.length) {
+    v.appendChild(el('div',{class:'empty'},'No cocktails on this event yet.'));
+    return;
+  }
+
+  rows.forEach(ec => {
+    const c = state.data.cocktails.find(x => x.id === ec.cocktail_id);
+    if (!c) return;
+    const card = el('div',{class:'gs-cocktail'});
+    card.appendChild(el('h3',{}, c.name));
+    if (c.menu_wording)    card.appendChild(el('div',{class:'gs-menu'}, c.menu_wording));
+    if (c.flavour_profile) card.appendChild(el('div',{class:'gs-flavour'}, c.flavour_profile));
+    const grid = el('div',{class:'gs-grid'});
+    [['Glass',c.glassware],['Ice',c.ice],['Garnish',c.garnish]].forEach(([k,val]) => {
+      if (val) grid.appendChild(el('div',{}, el('b',{},k), val));
+    });
+    card.appendChild(grid);
+    if (c.allergens) card.appendChild(el('div',{class:'gs-allerg'}, c.allergens));
+    v.appendChild(card);
+  });
+}
+
+function renderEventHostDoc(v, id) {
+  const ev = eventById(id);
+  if (!ev) { v.appendChild(el('div',{class:'empty'},'Event not found.')); return; }
+  eventPrintHeader(v, ev, 'Preparation for the event host',
+    'Everything below is what you bring. The bar handles the rest.');
+
+  const { host } = computeEventLists(id);
+  const ingName = i => state.data.ingredients.find(x => x.id === i)?.name || '(unknown)';
+  const prepName = i => state.data.preps.find(x => x.id === i)?.name || '(unknown)';
+
+  if (!host.preps.size) {
+    v.appendChild(el('div',{class:'empty'},
+      el('div',{class:'big'},'Nothing assigned'),
+      el('div',{},'No preps are marked as the host\u2019s responsibility.'),
+    ));
+    return;
+  }
+
+  // Indkøbsliste
+  if (host.ingredients.size) {
+    const c = el('div',{class:'card'});
+    c.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Shopping list')));
+    [...host.ingredients.entries()]
+      .map(([k,o]) => [ingName(k), `${num(o.qty,1)} ${o.unit||''}${o.mixedUnits?' ⚠':''}`])
+      .sort((a,b)=>a[0].localeCompare(b[0]))
+      .forEach(([n,q]) => c.appendChild(el('div',{class:'row'},
+        el('div',{class:'grow'}, n), el('div',{class:'right',style:{fontWeight:600}}, q))));
+    v.appendChild(c);
+  }
+
+  // Opskrifter
+  [...host.preps.entries()].forEach(([pid, o]) => {
+    const p = state.data.preps.find(x => x.id === pid);
+    if (!p) return;
+    const card = el('div',{class:'gs-cocktail'});
+    card.appendChild(el('h3',{}, p.name));
+    card.appendChild(el('div',{class:'gs-menu'},
+      `Make ${num(o.qty,1)} ${o.unit || ''} — the recipe below yields ${num(p.yield_quantity)} ${p.yield_unit || ''}`));
+    state.data.prep_components.filter(x => x.prep_id === pid).forEach(x => {
+      const nm = x.ingredient_id ? ingName(x.ingredient_id) : prepName(x.child_prep_id);
+      card.appendChild(el('div',{style:{fontSize:'12px',marginTop:'3px'}},
+        `· ${nm} — ${num(x.quantity)} ${x.unit||''}`));
+    });
+    if (p.procedure)  card.appendChild(el('div',{style:{fontSize:'12px',marginTop:'10px'}}, p.procedure));
+    if (p.shelf_life) card.appendChild(el('div',{class:'gs-allerg'}, 'Shelf life: ' + p.shelf_life));
+    v.appendChild(card);
+  });
+
+  v.appendChild(el('div',{class:'sb',style:{marginTop:'14px'}},
+    'Quantities are scaled from the recipes and not converted between units.'));
 }
 
 // ============================================================================
