@@ -697,6 +697,7 @@ function renderRoute() {
     case '#cocktails': return renderCocktails(v);
     case '#prep':      return renderPreps(v);
     case '#inventory': return renderInventory(v);
+    case '#menus':     return renderMenus(v);
     case '#orders':    return renderOrders(v);
     case '#guest':     return renderGuestShift(v);
     case '#index':
@@ -721,6 +722,7 @@ function renderIndex(v) {
     { hash: '#orders',    ic: '↗', label: 'Orders' },
     { hash: '#guest',     ic: '✦', label: 'Service' },
   ];
+  if (currentRole() === 'admin') items.push({ hash: '#menus', ic: '☷', label: 'Menus' });
   const hub = el('div', { class: 'hub' });
   items.forEach(it => {
     hub.appendChild(el('button', { class: 'hub-btn', onclick: () => location.hash = it.hash },
@@ -1527,6 +1529,184 @@ function renderGuestShift(v) {
     if (c.procedure) card.appendChild(el('div',{style:{fontSize:'12px',color:'var(--ink-soft)',marginTop:'10px'}}, c.procedure));
     if (c.allergens) card.appendChild(el('div',{class:'gs-allerg'}, c.allergens));
     v.appendChild(card);
+  });
+}
+
+// ============================================================================
+// MENUS (admin)
+// ============================================================================
+function renderMenus(v) {
+  if (currentRole() !== 'admin') {
+    v.appendChild(el('div',{class:'empty'}, 'Admins only.'));
+    return;
+  }
+
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{}, 'Menus'),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, `${state.data.menu_groups.length} groups · ${state.data.menus.length} menus`),
+  ));
+
+  v.appendChild(el('div',{class:'btn-row',style:{marginBottom:'14px'}},
+    el('button',{class:'btn',onclick:()=>openGroupEditor(null)},'+ New group'),
+    el('button',{class:'btn ghost',onclick:()=>openMenuEditor(null)},'+ New menu'),
+  ));
+
+  const menuRow = (m) => {
+    const count = cocktailIdsOnMenu(m.id).length;
+    return el('div',{class:'row click',onclick:()=>openMenuEditor(m)},
+      el('div',{class:'grow'},
+        el('div',{class:'ttl'}, m.name,
+          m.is_active === false ? el('span',{class:'chip warn',style:{marginLeft:'6px'}},'INACTIVE') : null),
+        el('div',{class:'sb'}, count === 1 ? '1 cocktail' : `${count} cocktails`),
+      ),
+      el('div',{class:'right'}, el('span',{class:'chip s'},'Edit')),
+    );
+  };
+
+  // Menuer uden gruppe
+  const solo = ungroupedMenus();
+  if (solo.length) {
+    v.appendChild(el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--ink-mute)',fontWeight:600,margin:'12px 0 6px'}}, 'No group'));
+    const card = el('div',{class:'card'});
+    solo.forEach(m => card.appendChild(menuRow(m)));
+    v.appendChild(card);
+  }
+
+  // Grupper
+  state.data.menu_groups.forEach(g => {
+    const hd = el('div',{style:{display:'flex',alignItems:'center',gap:'8px',margin:'16px 0 6px'}},
+      el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--ink-mute)',fontWeight:600}}, g.name),
+      g.is_active === false ? el('span',{class:'chip warn'},'INACTIVE') : null,
+      el('button',{class:'btn ghost sm',onclick:()=>openGroupEditor(g)},'Edit group'),
+    );
+    v.appendChild(hd);
+    const ms = menusInGroup(g.id);
+    if (!ms.length) {
+      v.appendChild(el('div',{class:'sb',style:{paddingLeft:'2px',marginBottom:'4px'}}, 'No menus in this group yet.'));
+      return;
+    }
+    const card = el('div',{class:'card'});
+    ms.forEach(m => card.appendChild(menuRow(m)));
+    v.appendChild(card);
+  });
+
+  if (!state.data.menus.length && !state.data.menu_groups.length) {
+    v.appendChild(el('div',{class:'empty'},
+      el('div',{class:'big'},'No menus yet'),
+      el('div',{},'Create a menu to start organising your cocktails.'),
+    ));
+  }
+}
+
+async function openGroupEditor(group) {
+  const isNew = !group;
+  const f = group ? { ...group } : { name:'', sort_order:0, is_active:true };
+  const form = el('div');
+
+  const nameInp = el('input',{class:'input',value:f.name,oninput:e=>f.name=e.target.value});
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Group name'), nameInp));
+
+  const sortInp = el('input',{class:'input',type:'number',value:f.sort_order ?? 0,
+    oninput:e=>f.sort_order = e.target.value===''?0:Number(e.target.value)});
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Sort order'), sortInp));
+
+  const chk = el('input',{type:'checkbox',style:{marginRight:'6px'}});
+  chk.checked = f.is_active !== false;
+  chk.addEventListener('change',()=>f.is_active = chk.checked);
+  form.appendChild(el('div',{class:'field'},
+    el('label',{style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer'}}, chk, 'Active'),
+    el('div',{class:'sb',style:{marginTop:'4px'}},'Inactive groups are hidden from the Service page.'),
+  ));
+
+  if (!isNew) {
+    form.appendChild(el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}},
+      el('button',{class:'btn ghost sm',style:{color:'var(--bad,#a33)'},onclick:async()=>{
+        if (!confirm(`Delete the group "${group.name}"?`)) return;
+        const { error } = await state.sb.from('menu_groups').delete().eq('id', group.id);
+        if (error) return toast('Move or delete its menus first','bad');
+        state.data.menu_groups = state.data.menu_groups.filter(x => x.id !== group.id);
+        closeModal(); toast('Group deleted','ok'); renderRoute();
+      }},'Delete group'),
+    ));
+  }
+
+  await modal(isNew ? 'New group' : 'Edit group', form, async () => {
+    if (!f.name.trim()) return toast('Name required','bad');
+    const payload = { tenant_id: state.activeTenantId, name: f.name.trim(),
+      sort_order: f.sort_order ?? 0, is_active: f.is_active !== false };
+    if (isNew) {
+      const { data, error } = await state.sb.from('menu_groups').insert(payload).select().single();
+      if (error) return toast(error.message,'bad');
+      state.data.menu_groups.push(data);
+    } else {
+      const { error } = await state.sb.from('menu_groups').update(payload).eq('id', group.id);
+      if (error) return toast(error.message,'bad');
+      Object.assign(group, payload);
+    }
+    state.data.menu_groups.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0) || a.name.localeCompare(b.name));
+    toast('Saved','ok'); renderRoute(); return true;
+  });
+}
+
+async function openMenuEditor(menu) {
+  const isNew = !menu;
+  const f = menu ? { ...menu } : { name:'', group_id:null, sort_order:0, is_active:true };
+  const form = el('div');
+
+  const nameInp = el('input',{class:'input',value:f.name,oninput:e=>f.name=e.target.value});
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Menu name'), nameInp));
+
+  const grpSel = el('select',{class:'input',onchange:e=>f.group_id = e.target.value || null});
+  grpSel.appendChild(el('option',{value:''},'— No group —'));
+  state.data.menu_groups.forEach(g => {
+    const o = el('option',{value:g.id}, g.name);
+    if (g.id === f.group_id) o.selected = true;
+    grpSel.appendChild(o);
+  });
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Group'), grpSel));
+
+  const sortInp = el('input',{class:'input',type:'number',value:f.sort_order ?? 0,
+    oninput:e=>f.sort_order = e.target.value===''?0:Number(e.target.value)});
+  form.appendChild(el('div',{class:'field'}, el('label',{},'Sort order'), sortInp));
+
+  const chk = el('input',{type:'checkbox',style:{marginRight:'6px'}});
+  chk.checked = f.is_active !== false;
+  chk.addEventListener('change',()=>f.is_active = chk.checked);
+  form.appendChild(el('div',{class:'field'},
+    el('label',{style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer'}}, chk, 'Active'),
+    el('div',{class:'sb',style:{marginTop:'4px'}},'Inactive menus disappear from Service. The cocktails on them are kept.'),
+  ));
+
+  if (!isNew) {
+    const n = cocktailIdsOnMenu(menu.id).length;
+    form.appendChild(el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}},
+      el('button',{class:'btn ghost sm',style:{color:'var(--bad,#a33)'},onclick:async()=>{
+        if (!confirm(`Delete "${menu.name}"? ${n} cocktail link(s) will be removed. The cocktails themselves are kept.`)) return;
+        const { error } = await state.sb.from('menus').delete().eq('id', menu.id);
+        if (error) return toast(error.message,'bad');
+        state.data.menus = state.data.menus.filter(x => x.id !== menu.id);
+        state.data.menu_cocktails = state.data.menu_cocktails.filter(mc => mc.menu_id !== menu.id);
+        closeModal(); toast('Menu deleted','ok'); renderRoute();
+      }},'Delete menu'),
+    ));
+  }
+
+  await modal(isNew ? 'New menu' : 'Edit menu', form, async () => {
+    if (!f.name.trim()) return toast('Name required','bad');
+    const payload = { tenant_id: state.activeTenantId, name: f.name.trim(),
+      group_id: f.group_id || null, sort_order: f.sort_order ?? 0, is_active: f.is_active !== false };
+    if (isNew) {
+      const { data, error } = await state.sb.from('menus').insert(payload).select().single();
+      if (error) return toast(error.message,'bad');
+      state.data.menus.push(data);
+    } else {
+      const { error } = await state.sb.from('menus').update(payload).eq('id', menu.id);
+      if (error) return toast(error.message,'bad');
+      Object.assign(menu, payload);
+    }
+    state.data.menus.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0) || a.name.localeCompare(b.name));
+    toast('Saved','ok'); renderRoute(); return true;
   });
 }
 
