@@ -313,7 +313,13 @@ const state = {
     prep_components: [],
     cocktails: [],
     cocktail_components: [],
+    menu_groups: [],
+    menus: [],
+    menu_cocktails: [],
   },
+  menuFilter: 'all',      // 'all' | 'nomenu' | menu-id  (Cocktails page)
+  svcGroupId: null,       // valgt gruppe på Service-siden
+  svcMenuId: null,        // valgt menu på Service-siden
   loading: false,
   rtChannel: null,
 };
@@ -459,12 +465,15 @@ function setupRealtime() {
 async function loadAll() {
   state.loading = true;
   const tid = state.activeTenantId;
-  const [ing, preps, pc, cocks, cc] = await Promise.all([
+  const [ing, preps, pc, cocks, cc, mg, mn, mc] = await Promise.all([
     state.sb.from('ingredients').select('*').eq('tenant_id', tid).order('category').order('name'),
     state.sb.from('preps').select('*').eq('tenant_id', tid).order('type').order('name'),
     state.sb.from('prep_components').select('*').eq('tenant_id', tid),
     state.sb.from('cocktails').select('*').eq('tenant_id', tid).order('name'),
     state.sb.from('cocktail_components').select('*').eq('tenant_id', tid),
+    state.sb.from('menu_groups').select('*').eq('tenant_id', tid).order('sort_order').order('name'),
+    state.sb.from('menus').select('*').eq('tenant_id', tid).order('sort_order').order('name'),
+    state.sb.from('menu_cocktails').select('*').eq('tenant_id', tid).order('sort_order'),
   ]);
   if (ing.error)   toast('Ingredients: ' + ing.error.message, 'bad');
   if (preps.error) toast('Preps: ' + preps.error.message, 'bad');
@@ -473,7 +482,65 @@ async function loadAll() {
   state.data.prep_components     = pc.data || [];
   state.data.cocktails           = cocks.data || [];
   state.data.cocktail_components = cc.data || [];
+  state.data.menu_groups         = mg.data || [];
+  state.data.menus               = mn.data || [];
+  state.data.menu_cocktails      = mc.data || [];
+  // Nulstil menuvalg — de peger på den forrige tenants data
+  state.menuFilter = 'all';
+  state.svcGroupId = null;
+  state.svcMenuId  = null;
   state.loading = false;
+}
+
+// ============================================================================
+// MENU HELPERS
+// ============================================================================
+
+// Alle menuer, sorteret, evt. kun aktive
+function allMenus(activeOnly = false) {
+  return state.data.menus.filter(m => !activeOnly || m.is_active !== false);
+}
+
+// Grupper der faktisk har mindst én (aktiv) menu
+function groupsWithMenus(activeOnly = false) {
+  const used = new Set(allMenus(activeOnly).map(m => m.group_id).filter(Boolean));
+  return state.data.menu_groups
+    .filter(g => used.has(g.id) && (!activeOnly || g.is_active !== false));
+}
+
+// Menuer uden gruppe (Razzia, Aldea)
+function ungroupedMenus(activeOnly = false) {
+  return allMenus(activeOnly).filter(m => !m.group_id);
+}
+
+function menusInGroup(groupId, activeOnly = false) {
+  return allMenus(activeOnly).filter(m => m.group_id === groupId);
+}
+
+function menuById(id) {
+  return state.data.menus.find(m => m.id === id) || null;
+}
+
+// Menu-id'er en given cocktail ligger på
+function menuIdsForCocktail(cocktailId) {
+  return state.data.menu_cocktails
+    .filter(mc => mc.cocktail_id === cocktailId)
+    .map(mc => mc.menu_id);
+}
+
+// Cocktail-id'er på en given menu, i menuens rækkefølge
+function cocktailIdsOnMenu(menuId) {
+  return state.data.menu_cocktails
+    .filter(mc => mc.menu_id === menuId)
+    .sort((a,b) => (a.sort_order||0) - (b.sort_order||0))
+    .map(mc => mc.cocktail_id);
+}
+
+// Kort label: "Main › Oltre" eller bare "Main Menu"
+function menuLabel(menu) {
+  if (!menu) return '';
+  const g = state.data.menu_groups.find(x => x.id === menu.group_id);
+  return g ? `${g.name} › ${menu.name}` : menu.name;
 }
 
 // ============================================================================
@@ -681,7 +748,26 @@ function renderCocktails(v) {
     'Active only',
   );
   v.appendChild(q);
-  v.appendChild(el('div', { style: { marginBottom: '10px' } }, onlyActive));
+
+  // -- Gruppe/menu-filter --
+  const menuSel = el('select', { class:'input', style:{maxWidth:'260px',padding:'8px 6px',minHeight:'38px',fontSize:'13px'},
+    onchange: e => { state.menuFilter = e.target.value; render(); } });
+  menuSel.appendChild(el('option', { value:'all' }, 'All cocktails'));
+  ungroupedMenus().forEach(m => menuSel.appendChild(el('option', { value:m.id }, m.name)));
+  groupsWithMenus().forEach(g => {
+    const og = el('optgroup', { label: g.name });
+    menusInGroup(g.id).forEach(m => og.appendChild(el('option', { value:m.id }, m.name)));
+    menuSel.appendChild(og);
+  });
+  if (state.data.menus.length > 0) {
+    menuSel.appendChild(el('option', { value:'nomenu' }, '— Not on any menu —'));
+  }
+  menuSel.value = state.menuFilter;
+
+  const controls = el('div', { style:{ display:'flex', alignItems:'center', gap:'10px',
+    flexWrap:'wrap', marginBottom:'10px' } }, onlyActive);
+  if (state.data.menus.length > 0) controls.appendChild(menuSel);
+  v.appendChild(controls);
 
   const list = el('div', { class: 'card' });
   v.appendChild(list);
@@ -698,6 +784,12 @@ function renderCocktails(v) {
     list.innerHTML = '';
     let rows = state.data.cocktails;
     if (filterActive) rows = rows.filter(c => c.is_active);
+    if (state.menuFilter === 'nomenu') {
+      rows = rows.filter(c => menuIdsForCocktail(c.id).length === 0);
+    } else if (state.menuFilter !== 'all') {
+      const ids = new Set(cocktailIdsOnMenu(state.menuFilter));
+      rows = rows.filter(c => ids.has(c.id));
+    }
     if (term) {
       rows = rows.filter(c =>
         (c.name||'').toLowerCase().includes(term) ||
@@ -1345,18 +1437,83 @@ function exportSupplierMail(sup, items) {
 // GUEST SHIFT
 // ============================================================================
 function renderGuestShift(v) {
-  const t = state.tenants.find(x => x.id === state.activeTenantId);
-  const actives = state.data.cocktails.filter(c => c.is_active);
+  // Kun aktive menuer i aktive grupper er gæstevendte
+  const activeGroupIds = new Set(
+    state.data.menu_groups.filter(g => g.is_active !== false).map(g => g.id)
+  );
+  const visibleMenus = allMenus(true).filter(m => !m.group_id || activeGroupIds.has(m.group_id));
+
+  // Faneblade på øverste niveau: grupper + menuer uden gruppe
+  const entries = [];
+  visibleMenus.filter(m => !m.group_id)
+    .forEach(m => entries.push({ key:'m:'+m.id, name:m.name, menus:[m] }));
+  state.data.menu_groups
+    .filter(g => g.is_active !== false)
+    .forEach(g => {
+      const ms = visibleMenus.filter(m => m.group_id === g.id);
+      if (ms.length) entries.push({ key:'g:'+g.id, name:g.name, menus:ms });
+    });
+
+  // Fastlæg valget
+  let entry = entries.find(e => e.key === state.svcGroupId) || entries[0] || null;
+  if (entry) state.svcGroupId = entry.key;
+  let menu = entry ? (entry.menus.find(m => m.id === state.svcMenuId) || entry.menus[0]) : null;
+  if (menu) state.svcMenuId = menu.id;
+
+  // Hvilke cocktails vises
+  let actives;
+  if (menu) {
+    const byId = new Map(state.data.cocktails.map(c => [c.id, c]));
+    actives = cocktailIdsOnMenu(menu.id).map(id => byId.get(id))
+      .filter(c => c && c.is_active);
+  } else {
+    // Ingen menuer oprettet endnu — vis alt aktivt som hidtil
+    actives = state.data.cocktails.filter(c => c.is_active);
+  }
 
   v.appendChild(el('div',{class:'section-hd'},
     el('h1',{}, 'Service'),
     el('div',{class:'rule'}),
-    el('div',{class:'sub'}, `${actives.length} cocktails on the menu`),
+    el('div',{class:'sub'}, menu
+      ? `${menuLabel(menu)} — ${actives.length} cocktails`
+      : `${actives.length} cocktails on the menu`),
   ));
+
+  // Gruppe-faner (skjules hvis der kun er én)
+  if (entries.length > 1) {
+    const tabs = el('div',{class:'no-print',style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'8px'}});
+    entries.forEach(e => {
+      tabs.appendChild(el('button',{
+        class: e.key === state.svcGroupId ? 'btn sm' : 'btn ghost sm',
+        onclick: () => { state.svcGroupId = e.key; state.svcMenuId = null; renderRoute(); }
+      }, e.name));
+    });
+    v.appendChild(tabs);
+  }
+
+  // Menu-faner inde i gruppen (skjules hvis gruppen kun har én menu)
+  if (entry && entry.menus.length > 1) {
+    const mtabs = el('div',{class:'no-print',style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'10px'}});
+    entry.menus.forEach(m => {
+      mtabs.appendChild(el('button',{
+        class: m.id === state.svcMenuId ? 'btn sm' : 'btn ghost sm',
+        onclick: () => { state.svcMenuId = m.id; renderRoute(); }
+      }, m.name));
+    });
+    v.appendChild(mtabs);
+  }
 
   v.appendChild(el('div',{class:'btn-row no-print',style:{marginBottom:'14px'}},
     el('button',{class:'btn',onclick:()=>window.print()},'🖨 Print A4'),
   ));
+
+  if (actives.length === 0) {
+    v.appendChild(el('div',{class:'empty'},
+      el('div',{class:'big'}, 'No cocktails on this menu'),
+      el('div',{}, 'Add cocktails to it from the cocktail editor.'),
+    ));
+    return;
+  }
 
   actives.forEach(c => {
     const card = el('div',{class:'gs-cocktail'});
@@ -1509,8 +1666,32 @@ async function openCocktailEditor(cocktail) {
   activeChk.addEventListener('change', () => f.is_active = activeChk.checked);
   form.appendChild(el('div',{class:'field'},
     el('label',{style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer'}},
-      activeChk, 'Active on menu'),
+      activeChk, 'Active'),
   ));
+
+  // -- Menus section --
+  const menuIds = new Set(isNew ? [] : menuIdsForCocktail(cocktail.id));
+  if (state.data.menus.length > 0) {
+    const menuSection = el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}});
+    menuSection.appendChild(el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--ink-mute)',fontWeight:600,marginBottom:'10px'}}, 'On menus'));
+
+    const addChk = (m, box) => {
+      const chk = el('input',{type:'checkbox',style:{marginRight:'6px'}});
+      chk.checked = menuIds.has(m.id);
+      chk.addEventListener('change', () => chk.checked ? menuIds.add(m.id) : menuIds.delete(m.id));
+      box.appendChild(el('label',{style:{display:'flex',alignItems:'center',gap:'4px',cursor:'pointer',padding:'3px 0',fontSize:'13px'}},
+        chk, m.name + (m.is_active === false ? ' (inactive)' : '')));
+    };
+
+    ungroupedMenus().forEach(m => addChk(m, menuSection));
+    groupsWithMenus().forEach(g => {
+      menuSection.appendChild(el('div',{style:{fontSize:'12px',fontWeight:600,marginTop:'8px',color:'var(--ink-soft)'}}, g.name));
+      const box = el('div',{style:{paddingLeft:'10px'}});
+      menusInGroup(g.id).forEach(m => addChk(m, box));
+      menuSection.appendChild(box);
+    });
+    form.appendChild(menuSection);
+  }
 
   // -- Components section --
   const compSection = el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}});
@@ -1617,6 +1798,17 @@ async function openCocktailEditor(cocktail) {
       const { data: cd, error: ce } = await state.sb.from('cocktail_components').insert(cp).select().single();
       if (ce) toast('Component error: ' + ce.message,'bad');
       else state.data.cocktail_components.push(cd);
+    }
+
+    // Menu-tilknytninger: slet og genskab
+    await state.sb.from('menu_cocktails').delete().eq('cocktail_id', cocktailId);
+    state.data.menu_cocktails = state.data.menu_cocktails.filter(mc => mc.cocktail_id !== cocktailId);
+    for (const mid of menuIds) {
+      const { data: md, error: me } = await state.sb.from('menu_cocktails')
+        .insert({ tenant_id: state.activeTenantId, menu_id: mid, cocktail_id: cocktailId, sort_order: 0 })
+        .select().single();
+      if (me) toast('Menu error: ' + me.message,'bad');
+      else state.data.menu_cocktails.push(md);
     }
 
     toast('Saved','ok');
