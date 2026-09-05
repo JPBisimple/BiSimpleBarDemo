@@ -1889,6 +1889,17 @@ function renderEventDetail(v, id) {
 
   if (!rows.length) {
     card.appendChild(el('div',{class:'sb',style:{padding:'12px'}},'No cocktails yet.'));
+  } else {
+    const hdStyle = {fontSize:'10px',textTransform:'uppercase',letterSpacing:'.08em',
+      color:'var(--ink-mute)',fontWeight:600};
+    card.appendChild(el('div',{class:'row',style:{paddingTop:'4px',paddingBottom:'4px'}},
+      el('div',{class:'grow'}),
+      el('div',{class:'right',style:{display:'flex',gap:'8px',alignItems:'center'}},
+        el('div',{style:{...hdStyle,width:'80px',textAlign:'right'}},'Qty'),
+        isAdmin ? el('div',{style:{...hdStyle,minWidth:'72px',textAlign:'right'}},'Cost') : null,
+        el('div',{style:{width:'30px'}}),
+      ),
+    ));
   }
 
   rows.forEach(ec => {
@@ -1911,8 +1922,10 @@ function renderEventDetail(v, id) {
       ),
       el('div',{class:'right',style:{display:'flex',gap:'8px',alignItems:'center'}},
         qty,
-        isAdmin ? el('div',{style:{minWidth:'72px',textAlign:'right',fontSize:'12px'}},
-          dkk((r.cost||0) * (ec.quantity||0))) : null,
+        isAdmin ? el('div',{
+          style:{minWidth:'72px',textAlign:'right',fontSize:'12px'},
+          title: (r.missing && r.missing.length) ? 'Ingredient prices are missing' : ''},
+          (r.missing && r.missing.length) ? '—' : dkk((r.cost||0) * (ec.quantity||0))) : null,
         el('button',{class:'btn ghost sm',onclick:async()=>{
           if (!confirm(`Remove "${c.name}" from this event? The event copy is deleted.`)) return;
           await state.sb.from('event_cocktails').delete().eq('id', ec.id);
@@ -1942,10 +1955,11 @@ function renderEventDetail(v, id) {
     const line = (k, val) => box.appendChild(el('div',{class:'row'},
       el('div',{class:'grow'}, k), el('div',{class:'right',style:{fontWeight:600}}, val)));
     line('Drinks', String(t.drinks));
-    line('Cost', dkk(t.cost));
+    const incomplete = t.missing.length > 0;
+    line('Cost', incomplete ? '—' : dkk(t.cost));
     line('Revenue', dkk(t.revenue));
-    line('Gross profit', dkk(t.revenue - t.cost));
-    line('Margin', t.margin == null ? '—' : num(t.margin,1) + '%');
+    line('Gross profit', incomplete ? '—' : dkk(t.revenue - t.cost));
+    line('Margin', (incomplete || t.margin == null) ? '—' : num(t.margin,1) + '%');
     if (t.missing.length) {
       box.appendChild(el('div',{class:'sb',style:{padding:'10px 12px',color:'var(--ink-soft)'}},
         '⚠ Missing ingredient prices in: ' + t.missing.join(', ') + '. Cost is understated.'));
