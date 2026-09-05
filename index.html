@@ -322,6 +322,9 @@ const state = {
     menu_groups: [],
     menus: [],
     menu_cocktails: [],
+    events: [],
+    event_cocktails: [],
+    event_prep_resp: [],
   },
   menuFilter: 'all',      // 'all' | 'nomenu' | menu-id  (Cocktails page)
   svcGroupId: null,       // valgt gruppe på Service-siden
@@ -471,7 +474,7 @@ function setupRealtime() {
 async function loadAll() {
   state.loading = true;
   const tid = state.activeTenantId;
-  const [ing, preps, pc, cocks, cc, mg, mn, mc] = await Promise.all([
+  const [ing, preps, pc, cocks, cc, mg, mn, mc, ev, ec, epr] = await Promise.all([
     state.sb.from('ingredients').select('*').eq('tenant_id', tid).order('category').order('name'),
     state.sb.from('preps').select('*').eq('tenant_id', tid).order('type').order('name'),
     state.sb.from('prep_components').select('*').eq('tenant_id', tid),
@@ -480,6 +483,9 @@ async function loadAll() {
     state.sb.from('menu_groups').select('*').eq('tenant_id', tid).order('sort_order').order('name'),
     state.sb.from('menus').select('*').eq('tenant_id', tid).order('sort_order').order('name'),
     state.sb.from('menu_cocktails').select('*').eq('tenant_id', tid).order('sort_order'),
+    state.sb.from('events').select('*').eq('tenant_id', tid).order('event_date', { ascending:false }),
+    state.sb.from('event_cocktails').select('*').eq('tenant_id', tid).order('sort_order'),
+    state.sb.from('event_prep_responsibility').select('*').eq('tenant_id', tid),
   ]);
   if (ing.error)   toast('Ingredients: ' + ing.error.message, 'bad');
   if (preps.error) toast('Preps: ' + preps.error.message, 'bad');
@@ -491,6 +497,9 @@ async function loadAll() {
   state.data.menu_groups         = mg.data || [];
   state.data.menus               = mn.data || [];
   state.data.menu_cocktails      = mc.data || [];
+  state.data.events              = ev.data || [];
+  state.data.event_cocktails     = ec.data || [];
+  state.data.event_prep_resp     = epr.data || [];
   // Nulstil menuvalg — de peger på den forrige tenants data
   state.menuFilter = 'all';
   state.svcGroupId = null;
@@ -549,6 +558,142 @@ function menuLabel(menu) {
   return g ? `${g.name} › ${menu.name}` : menu.name;
 }
 
+// ============================================================================
+// EVENT HELPERS
+// ============================================================================
+
+// Cocktails og preps uden event_id er "biblioteket" — det normale sortiment
+const normalCocktails = () => state.data.cocktails.filter(c => !c.event_id);
+const normalPreps     = () => state.data.preps.filter(p => !p.event_id);
+const eventById       = id => state.data.events.find(e => e.id === id) || null;
+
+// Preps der må bruges i et event: biblioteket + eventets egne
+const prepsForEvent = eventId =>
+  state.data.preps.filter(p => !p.event_id || p.event_id === eventId);
+
+function prepResponsible(eventId, prepId) {
+  const r = state.data.event_prep_resp.find(x => x.event_id === eventId && x.prep_id === prepId);
+  return r ? r.responsible : 'bar';
+}
+
+// Alle preps et event rører — også dem der ligger inde i andre preps
+function prepsUsedByEvent(eventId) {
+  const found = new Map();   // prep_id -> dybde (0 = direkte i en cocktail)
+  const walk = (prepId, depth, seen) => {
+    if (seen.has(prepId)) return;
+    seen.add(prepId);
+    if (!found.has(prepId)) found.set(prepId, depth);
+    state.data.prep_components
+      .filter(pc => pc.prep_id === prepId && pc.child_prep_id)
+      .forEach(pc => walk(pc.child_prep_id, depth + 1, seen));
+  };
+  state.data.event_cocktails
+    .filter(ec => ec.event_id === eventId)
+    .forEach(ec => {
+      state.data.cocktail_components
+        .filter(cc => cc.cocktail_id === ec.cocktail_id && cc.prep_id)
+        .forEach(cc => walk(cc.prep_id, 0, new Set()));
+    });
+  return [...found.keys()]
+    .map(id => state.data.preps.find(p => p.id === id))
+    .filter(Boolean)
+    .sort((a,b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Beregner pakkelister for et event.
+ *
+ * Regel: en prep med ansvar 'bar' regnes videre ned i sine ingredienser.
+ * En prep med ansvar 'host' stopper beregningen for baren — værten leverer
+ * den færdige prep — og hele prep'ens indhold lægges i stedet på værtens liste.
+ *
+ * BEGRÆNSNING: der omregnes ikke mellem enheder. Gram og milliliter lægges
+ * sammen som rene tal, præcis som i den eksisterende kostberegning.
+ */
+function computeEventLists(eventId) {
+  const bar  = { ingredients:new Map(), preps:new Map(), tools:[] };
+  const host = { ingredients:new Map(), preps:new Map() };
+  const warnings = [];
+
+  const bump = (map, id, qty, unit) => {
+    const cur = map.get(id) || { qty:0, unit };
+    cur.qty += qty;
+    if (cur.unit !== unit) cur.mixedUnits = true;
+    map.set(id, cur);
+  };
+
+  // Udfold en prep ned i råvarer. target = hvilken liste ingredienserne havner på.
+  function expand(prepId, amount, target, seen) {
+    const p = state.data.preps.find(x => x.id === prepId);
+    if (!p) return;
+    if (seen.has(prepId)) { warnings.push(`${p.name} indeholder sig selv — springet over`); return; }
+    if (!p.yield_quantity) { warnings.push(`${p.name} mangler yield — kan ikke skaleres`); return; }
+    const next = new Set(seen); next.add(prepId);
+    const factor = amount / p.yield_quantity;
+    state.data.prep_components.filter(pc => pc.prep_id === prepId).forEach(pc => {
+      const q = (pc.quantity || 0) * factor;
+      if (pc.ingredient_id) bump(target.ingredients, pc.ingredient_id, q, pc.unit);
+      else if (pc.child_prep_id) {
+        // Inde i en værts-prep hører hele kæden til værten
+        if (target === host) {
+          bump(host.preps, pc.child_prep_id, q, pc.unit);
+          expand(pc.child_prep_id, q, host, next);
+        } else {
+          routePrep(pc.child_prep_id, q, pc.unit, next);
+        }
+      }
+    });
+  }
+
+  // Afgør hvem der har ansvaret, og send prep'en den rigtige vej
+  function routePrep(prepId, amount, unit, seen) {
+    if (prepResponsible(eventId, prepId) === 'host') {
+      bump(host.preps, prepId, amount, unit);
+      expand(prepId, amount, host, seen);
+    } else {
+      bump(bar.preps, prepId, amount, unit);
+      expand(prepId, amount, bar, seen);
+    }
+  }
+
+  state.data.event_cocktails
+    .filter(ec => ec.event_id === eventId)
+    .forEach(ec => {
+      const c = state.data.cocktails.find(x => x.id === ec.cocktail_id);
+      if (!c) return;
+      const n = ec.quantity || 0;
+      if (n <= 0) return;
+      if (c.tools) bar.tools.push({ cocktail:c.name, tools:c.tools });
+      state.data.cocktail_components
+        .filter(cc => cc.cocktail_id === c.id)
+        .forEach(cc => {
+          const q = (cc.quantity || 0) * n;
+          // Ingredienser direkte i en cocktail er altid barens
+          if (cc.ingredient_id) bump(bar.ingredients, cc.ingredient_id, q, cc.unit);
+          else if (cc.prep_id) routePrep(cc.prep_id, q, cc.unit, new Set());
+        });
+    });
+
+  return { bar, host, warnings };
+}
+
+// Kostpris, omsætning og margin for hele eventet
+function eventTotals(eventId) {
+  let cost = 0, revenue = 0, drinks = 0;
+  const missing = [];
+  state.data.event_cocktails.filter(ec => ec.event_id === eventId).forEach(ec => {
+    const c = state.data.cocktails.find(x => x.id === ec.cocktail_id);
+    if (!c) return;
+    const n = ec.quantity || 0;
+    drinks += n;
+    const r = cocktailCost(c.id);
+    if (r.missing && r.missing.length) missing.push(c.name);
+    cost    += (r.cost || 0) * n;
+    revenue += (c.sell_price || 0) * n;
+  });
+  const margin = revenue ? ((revenue - cost) / revenue) * 100 : null;
+  return { cost, revenue, drinks, margin, missing };
+}
 // ============================================================================
 // COST CALCULATION
 // ============================================================================
@@ -698,12 +843,14 @@ function renderRoute() {
     return;
   }
   if (h.startsWith('#cocktail/')) return renderCocktailDetail(v, h.split('/')[1]);
+  if (h.startsWith('#event/'))    return renderEventDetail(v, h.split('/')[1]);
   if (h.startsWith('#prep/'))     return renderPrepDetail(v, h.split('/')[1]);
   switch (h) {
     case '#cocktails': return renderCocktails(v);
     case '#prep':      return renderPreps(v);
     case '#inventory': return renderInventory(v);
     case '#menus':     return renderMenus(v);
+    case '#events':    return renderEvents(v);
     case '#orders':
       if (!FEATURES.orders) { location.hash = '#index'; return renderIndex(v); }
       return renderOrders(v);
@@ -730,6 +877,7 @@ function renderIndex(v) {
     { hash: '#orders',    ic: '↗', label: 'Orders' },
     { hash: '#guest',     ic: '✦', label: 'Service' },
   ].filter(it => it.hash !== '#orders' || FEATURES.orders);
+  items.push({ hash: '#events', ic: '◈', label: 'Events' });
   if (currentRole() === 'admin') items.push({ hash: '#menus', ic: '☷', label: 'Menus' });
   const hub = el('div', { class: 'hub' });
   items.forEach(it => {
@@ -749,7 +897,7 @@ function renderCocktails(v) {
   v.appendChild(el('div', { class: 'section-hd' },
     el('h1', {}, 'Cocktails'),
     el('div', { class: 'rule' }),
-    el('div', { class: 'sub' }, `${state.data.cocktails.length} items`),
+    el('div', { class: 'sub' }, `${normalCocktails().length} items`),
   ));
 
   const q = el('input', { class: 'search', placeholder: 'Search cocktail or ingredient…', oninput: () => render() });
@@ -792,7 +940,7 @@ function renderCocktails(v) {
     const term = q.value.toLowerCase().trim();
     const filterActive = $('#onlyactive')?.checked;
     list.innerHTML = '';
-    let rows = state.data.cocktails;
+    let rows = normalCocktails();
     if (filterActive) rows = rows.filter(c => c.is_active);
     if (state.menuFilter === 'nomenu') {
       rows = rows.filter(c => menuIdsForCocktail(c.id).length === 0);
@@ -948,7 +1096,7 @@ function renderPreps(v) {
   v.appendChild(el('div',{class:'section-hd'},
     el('h1',{},'Prep'),
     el('div',{class:'rule'}),
-    el('div',{class:'sub'}, `${state.data.preps.length} items`),
+    el('div',{class:'sub'}, `${normalPreps().length} items`),
   ));
 
   const q = el('input',{class:'search',placeholder:'Search prep or ingredient…',oninput:()=>render()});
@@ -979,7 +1127,7 @@ function renderPreps(v) {
     const term = q.value.toLowerCase().trim();
     body.innerHTML = '';
 
-    let preps = state.data.preps;
+    let preps = normalPreps();
     if (term) {
       preps = preps.filter(p =>
         (p.name||'').toLowerCase().includes(term) ||
@@ -1540,7 +1688,7 @@ function renderGuestShift(v) {
       .filter(c => c && c.is_active);
   } else {
     // Ingen menuer oprettet endnu — vis alt aktivt som hidtil
-    actives = state.data.cocktails.filter(c => c.is_active);
+    actives = normalCocktails().filter(c => c.is_active);
   }
 
   v.appendChild(el('div',{class:'section-hd'},
@@ -1599,6 +1747,403 @@ function renderGuestShift(v) {
     if (c.procedure) card.appendChild(el('div',{style:{fontSize:'12px',color:'var(--ink-soft)',marginTop:'10px'}}, c.procedure));
     if (c.allergens) card.appendChild(el('div',{class:'gs-allerg'}, c.allergens));
     v.appendChild(card);
+  });
+}
+
+// ============================================================================
+// EVENTS
+// ============================================================================
+function renderEvents(v) {
+  const isAdmin = currentRole() === 'admin';
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{},'Events'),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, `${state.data.events.length} events`),
+  ));
+
+  if (isAdmin) {
+    v.appendChild(el('div',{class:'btn-row',style:{marginBottom:'14px'}},
+      el('button',{class:'btn',onclick:()=>openEventEditor(null)},'+ New event'),
+    ));
+  }
+
+  if (!state.data.events.length) {
+    v.appendChild(el('div',{class:'empty'},
+      el('div',{class:'big'},'No events yet'),
+      el('div',{},'Create one to start planning cocktails, quantities and packing lists.'),
+    ));
+    return;
+  }
+
+  const card = el('div',{class:'card'});
+  state.data.events.forEach(ev => {
+    const t = eventTotals(ev.id);
+    const meta = [ev.event_date || null, ev.customer || null].filter(Boolean).join(' · ');
+    card.appendChild(el('div',{class:'row click',onclick:()=>location.hash='#event/'+ev.id},
+      el('div',{class:'grow'},
+        el('div',{class:'ttl'}, ev.name,
+          ev.is_active === false ? el('span',{class:'chip warn',style:{marginLeft:'6px'}},'ARCHIVED') : null),
+        el('div',{class:'sb'}, meta || 'No date set'),
+      ),
+      el('div',{class:'right'},
+        el('div',{style:{fontWeight:600}}, `${t.drinks} drinks`),
+        isAdmin && t.revenue ? el('div',{class:'chip s',style:{marginTop:'4px'}}, dkk(t.revenue)) : null,
+      ),
+    ));
+  });
+  v.appendChild(card);
+}
+
+async function openEventEditor(ev) {
+  const isNew = !ev;
+  const f = ev ? { ...ev } : { name:'', event_date:'', customer:'', guest_count:null, notes:'', is_active:true };
+  const form = el('div');
+
+  const mk = (label, key, type='text') => {
+    const inp = el(type==='textarea'?'textarea':'input',
+      { class:'input', value: f[key] ?? '', ...(type!=='textarea'?{type}:{}),
+        oninput: e => f[key] = type==='number' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value });
+    form.appendChild(el('div',{class:'field'}, el('label',{},label), inp));
+  };
+  mk('Event name','name');
+  mk('Date','event_date','date');
+  mk('Customer','customer');
+  mk('Guests','guest_count','number');
+  mk('Notes','notes','textarea');
+
+  const chk = el('input',{type:'checkbox',style:{marginRight:'6px'}});
+  chk.checked = f.is_active !== false;
+  chk.addEventListener('change',()=>f.is_active=chk.checked);
+  form.appendChild(el('div',{class:'field'},
+    el('label',{style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer'}}, chk, 'Active'),
+    el('div',{class:'sb',style:{marginTop:'4px'}},'Archived events stay in the list, marked ARCHIVED.'),
+  ));
+
+  if (!isNew) {
+    const n = state.data.event_cocktails.filter(x => x.event_id === ev.id).length;
+    form.appendChild(el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}},
+      el('div',{class:'sb',style:{marginBottom:'6px'}},
+        'Deleting removes the event and its own cocktail and prep copies. Your library is untouched.'),
+      el('button',{class:'btn ghost sm',style:{color:'var(--bad,#a33)'},onclick:async()=>{
+        if (!confirm(`Delete "${ev.name}" with its ${n} cocktail(s)? This cannot be undone.`)) return;
+        const { error } = await state.sb.from('events').delete().eq('id', ev.id);
+        if (error) return toast(error.message,'bad');
+        state.data.events = state.data.events.filter(x => x.id !== ev.id);
+        state.data.event_cocktails = state.data.event_cocktails.filter(x => x.event_id !== ev.id);
+        state.data.event_prep_resp = state.data.event_prep_resp.filter(x => x.event_id !== ev.id);
+        state.data.cocktails = state.data.cocktails.filter(c => c.event_id !== ev.id);
+        state.data.preps     = state.data.preps.filter(p => p.event_id !== ev.id);
+        closeModal(); toast('Event deleted','ok'); location.hash = '#events';
+      }},'Delete event'),
+    ));
+  }
+
+  await modal(isNew ? 'New event' : 'Edit event', form, async () => {
+    if (!f.name.trim()) return toast('Name required','bad');
+    const payload = { tenant_id: state.activeTenantId, name: f.name.trim(),
+      event_date: f.event_date || null, customer: f.customer || null,
+      guest_count: f.guest_count ?? null, notes: f.notes || null,
+      is_active: f.is_active !== false };
+    if (isNew) {
+      const { data, error } = await state.sb.from('events').insert(payload).select().single();
+      if (error) return toast(error.message,'bad');
+      state.data.events.unshift(data);
+      toast('Event created','ok');
+      closeModal(); location.hash = '#event/' + data.id;
+      return true;
+    }
+    const { error } = await state.sb.from('events').update(payload).eq('id', ev.id);
+    if (error) return toast(error.message,'bad');
+    Object.assign(ev, payload);
+    toast('Saved','ok'); renderRoute(); return true;
+  });
+}
+
+function renderEventDetail(v, id) {
+  const ev = eventById(id);
+  if (!ev) { v.appendChild(el('div',{class:'empty'},'Event not found.')); return; }
+  const isAdmin = currentRole() === 'admin';
+
+  const meta = [ev.event_date, ev.customer, ev.guest_count ? ev.guest_count + ' guests' : null]
+    .filter(Boolean).join(' · ');
+  v.appendChild(el('div',{class:'section-hd'},
+    el('h1',{}, ev.name),
+    el('div',{class:'rule'}),
+    el('div',{class:'sub'}, meta || 'No details set'),
+  ));
+
+  v.appendChild(el('div',{class:'btn-row no-print',style:{marginBottom:'14px'}},
+    el('button',{class:'btn ghost sm',onclick:()=>location.hash='#events'},'← All events'),
+    isAdmin ? el('button',{class:'btn ghost sm',onclick:()=>openEventEditor(ev)},'Edit event') : null,
+    el('button',{class:'btn ghost sm',onclick:()=>window.print()},'🖨 Print'),
+  ));
+
+  // ---- Cocktails ----
+  const rows = state.data.event_cocktails
+    .filter(ec => ec.event_id === id)
+    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+
+  const card = el('div',{class:'card'});
+  card.appendChild(el('div',{class:'card-hd'},
+    el('h2',{},'Cocktails'), el('span',{class:'chip'}, String(rows.length))));
+
+  if (!rows.length) {
+    card.appendChild(el('div',{class:'sb',style:{padding:'12px'}},'No cocktails yet.'));
+  }
+
+  rows.forEach(ec => {
+    const c = state.data.cocktails.find(x => x.id === ec.cocktail_id);
+    if (!c) return;
+    const qty = el('input',{type:'number',class:'input',value:ec.quantity ?? 0,min:'0',
+      style:{width:'80px',minHeight:'36px',fontSize:'13px',textAlign:'right'},
+      onclick:e=>e.stopPropagation(),
+      onchange:async e=>{
+        const n = e.target.value===''?0:Number(e.target.value);
+        const { error } = await state.sb.from('event_cocktails').update({quantity:n}).eq('id', ec.id);
+        if (error) return toast(error.message,'bad');
+        ec.quantity = n; renderRoute();
+      }});
+    const r = cocktailCost(c.id);
+    card.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow click',onclick:()=>openCocktailEditor(c, id)},
+        el('div',{class:'ttl'}, c.name),
+        el('div',{class:'sb'}, c.menu_wording || 'Tap to edit this event copy'),
+      ),
+      el('div',{class:'right',style:{display:'flex',gap:'8px',alignItems:'center'}},
+        qty,
+        isAdmin ? el('div',{style:{minWidth:'72px',textAlign:'right',fontSize:'12px'}},
+          dkk((r.cost||0) * (ec.quantity||0))) : null,
+        el('button',{class:'btn ghost sm',onclick:async()=>{
+          if (!confirm(`Remove "${c.name}" from this event? The event copy is deleted.`)) return;
+          await state.sb.from('event_cocktails').delete().eq('id', ec.id);
+          await state.sb.from('cocktails').delete().eq('id', c.id);
+          state.data.event_cocktails = state.data.event_cocktails.filter(x => x.id !== ec.id);
+          state.data.cocktails = state.data.cocktails.filter(x => x.id !== c.id);
+          toast('Removed','ok'); renderRoute();
+        }},'✕'),
+      ),
+    ));
+  });
+  v.appendChild(card);
+
+  if (isAdmin) {
+    v.appendChild(el('div',{class:'btn-row no-print',style:{marginTop:'10px'}},
+      el('button',{class:'btn',onclick:()=>openEventCocktailPicker(ev)},'+ Add from library'),
+      el('button',{class:'btn ghost',onclick:()=>openCocktailEditor(null, id)},'+ New cocktail'),
+      el('button',{class:'btn ghost',onclick:()=>openPrepEditor(null, id)},'+ New prep'),
+    ));
+  }
+
+  // ---- Totals ----
+  if (isAdmin) {
+    const t = eventTotals(id);
+    const box = el('div',{class:'card',style:{marginTop:'16px'}});
+    box.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Event total')));
+    const line = (k, val) => box.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow'}, k), el('div',{class:'right',style:{fontWeight:600}}, val)));
+    line('Drinks', String(t.drinks));
+    line('Cost', dkk(t.cost));
+    line('Revenue', dkk(t.revenue));
+    line('Gross profit', dkk(t.revenue - t.cost));
+    line('Margin', t.margin == null ? '—' : num(t.margin,1) + '%');
+    if (t.missing.length) {
+      box.appendChild(el('div',{class:'sb',style:{padding:'10px 12px',color:'var(--ink-soft)'}},
+        '⚠ Missing ingredient prices in: ' + t.missing.join(', ') + '. Cost is understated.'));
+    }
+    v.appendChild(box);
+  }
+
+  // ---- Responsibility ----
+  const preps = prepsUsedByEvent(id);
+  if (preps.length) {
+    const rc = el('div',{class:'card',style:{marginTop:'16px'}});
+    rc.appendChild(el('div',{class:'card-hd'},
+      el('h2',{},'Who delivers the preps'), el('span',{class:'chip'}, String(preps.length))));
+    preps.forEach(p => {
+      const cur = prepResponsible(id, p.id);
+      const mkBtn = (val,label) => el('button',{
+        class: cur===val ? 'btn sm' : 'btn ghost sm',
+        onclick: async () => {
+          const existing = state.data.event_prep_resp.find(x => x.event_id===id && x.prep_id===p.id);
+          if (existing) {
+            const { error } = await state.sb.from('event_prep_responsibility')
+              .update({responsible:val}).eq('id', existing.id);
+            if (error) return toast(error.message,'bad');
+            existing.responsible = val;
+          } else {
+            const { data, error } = await state.sb.from('event_prep_responsibility')
+              .insert({tenant_id:state.activeTenantId,event_id:id,prep_id:p.id,responsible:val})
+              .select().single();
+            if (error) return toast(error.message,'bad');
+            state.data.event_prep_resp.push(data);
+          }
+          renderRoute();
+        }}, label);
+      rc.appendChild(el('div',{class:'row'},
+        el('div',{class:'grow'},
+          el('div',{class:'ttl'}, p.name),
+          el('div',{class:'sb'}, p.type || ''),
+        ),
+        el('div',{class:'right',style:{display:'flex',gap:'6px'}}, mkBtn('bar','Bar'), mkBtn('host','Host')),
+      ));
+    });
+    v.appendChild(rc);
+  }
+
+  // ---- Packing lists ----
+  const { bar, host, warnings } = computeEventLists(id);
+
+  const ingName = i => state.data.ingredients.find(x => x.id === i)?.name || '(unknown)';
+  const prepName = i => state.data.preps.find(x => x.id === i)?.name || '(unknown)';
+
+  const listCard = (title, subtitle, entries, emptyText) => {
+    const c = el('div',{class:'card',style:{marginTop:'16px'}});
+    c.appendChild(el('div',{class:'card-hd'}, el('h2',{},title), el('span',{class:'chip'}, String(entries.length))));
+    if (subtitle) c.appendChild(el('div',{class:'sb',style:{padding:'0 12px 8px'}}, subtitle));
+    if (!entries.length) c.appendChild(el('div',{class:'sb',style:{padding:'12px'}}, emptyText));
+    entries.forEach(([label, val]) => c.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow'}, label),
+      el('div',{class:'right',style:{fontWeight:600}}, val))));
+    return c;
+  };
+
+  const fmt = o => `${num(o.qty,1)} ${o.unit || ''}${o.mixedUnits ? ' ⚠' : ''}`;
+  const sortEntries = (map, nameFn) => [...map.entries()]
+    .map(([k,o]) => [nameFn(k), fmt(o)])
+    .sort((a,b) => a[0].localeCompare(b[0]));
+
+  v.appendChild(listCard('Bar — ingredients',
+    'Everything the bar buys, including what goes into the preps the bar makes.',
+    sortEntries(bar.ingredients, ingName), 'Nothing to buy.'));
+
+  v.appendChild(listCard('Bar — preps to make', null,
+    sortEntries(bar.preps, prepName), 'No preps for the bar.'));
+
+  v.appendChild(listCard('Event host — preps to deliver', null,
+    sortEntries(host.preps, prepName), 'The host delivers nothing.'));
+
+  if (host.ingredients.size) {
+    v.appendChild(listCard('Event host — ingredients',
+      'What the host needs in order to make the preps above.',
+      sortEntries(host.ingredients, ingName), ''));
+  }
+
+  // Tools — fritekst pr. cocktail, kan ikke lægges sammen
+  if (bar.tools.length) {
+    const tc = el('div',{class:'card',style:{marginTop:'16px'}});
+    tc.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Tools')));
+    tc.appendChild(el('div',{class:'sb',style:{padding:'0 12px 8px'}},
+      'Listed per cocktail — tools are free text and cannot be combined into one list.'));
+    bar.tools.forEach(t => tc.appendChild(el('div',{class:'row'},
+      el('div',{class:'grow'}, t.cocktail), el('div',{class:'right',style:{fontSize:'12px'}}, t.tools))));
+    v.appendChild(tc);
+  }
+
+  // Prep-beskrivelser til værten
+  if (host.preps.size) {
+    const pc = el('div',{class:'card',style:{marginTop:'16px'}});
+    pc.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Prep instructions for the host')));
+    [...host.preps.entries()].forEach(([pid, o]) => {
+      const p = state.data.preps.find(x => x.id === pid);
+      if (!p) return;
+      const b = el('div',{style:{padding:'12px',borderTop:'1px solid var(--line)'}});
+      b.appendChild(el('div',{style:{fontWeight:700,marginBottom:'2px'}},
+        `${p.name} — ${num(o.qty,1)} ${o.unit || ''}`));
+      b.appendChild(el('div',{class:'sb'}, `Recipe yields ${num(p.yield_quantity)} ${p.yield_unit || ''}`));
+      state.data.prep_components.filter(x => x.prep_id === pid).forEach(x => {
+        const nm = x.ingredient_id ? ingName(x.ingredient_id) : prepName(x.child_prep_id);
+        b.appendChild(el('div',{style:{fontSize:'12px',marginTop:'3px'}}, `· ${nm} — ${num(x.quantity)} ${x.unit||''}`));
+      });
+      if (p.procedure)  b.appendChild(el('div',{style:{fontSize:'12px',marginTop:'8px'}}, p.procedure));
+      if (p.shelf_life) b.appendChild(el('div',{class:'sb',style:{marginTop:'6px'}}, 'Shelf life: ' + p.shelf_life));
+      pc.appendChild(b);
+    });
+    v.appendChild(pc);
+  }
+
+  if (warnings.length) {
+    v.appendChild(el('div',{class:'card',style:{marginTop:'16px'}},
+      el('div',{class:'card-hd'}, el('h2',{},'Warnings')),
+      ...[...new Set(warnings)].map(w => el('div',{class:'row'}, el('div',{class:'grow'}, w))),
+    ));
+  }
+
+  v.appendChild(el('div',{class:'sb',style:{marginTop:'14px'}},
+    'Quantities are summed without converting between units — grams and millilitres are added as plain numbers.'));
+}
+
+async function openEventCocktailPicker(ev) {
+  const already = new Set(
+    state.data.event_cocktails.filter(ec => ec.event_id === ev.id)
+      .map(ec => state.data.cocktails.find(c => c.id === ec.cocktail_id)?.name)
+      .filter(Boolean));
+  const selected = new Set();
+  const form = el('div');
+
+  const q = el('input',{class:'input',placeholder:'Search cocktail…',oninput:()=>renderList()});
+  form.appendChild(el('div',{class:'field'}, q));
+  form.appendChild(el('div',{class:'sb',style:{marginBottom:'8px'}},
+    'Each cocktail is copied into the event. Editing the copy never changes your library.'));
+
+  const list = el('div',{style:{maxHeight:'46vh',overflowY:'auto',borderTop:'1px solid var(--line)'}});
+  form.appendChild(list);
+
+  function renderList() {
+    const term = q.value.toLowerCase().trim();
+    list.innerHTML = '';
+    const rows = normalCocktails().filter(c => !term ||
+      (c.name||'').toLowerCase().includes(term) ||
+      (c.menu_wording||'').toLowerCase().includes(term));
+    if (!rows.length) { list.appendChild(el('div',{class:'sb',style:{padding:'12px 2px'}},'No matches.')); return; }
+    rows.forEach(c => {
+      const chk = el('input',{type:'checkbox',style:{marginRight:'8px',flexShrink:0}});
+      chk.checked = selected.has(c.id);
+      chk.addEventListener('change',()=> chk.checked ? selected.add(c.id) : selected.delete(c.id));
+      list.appendChild(el('label',{style:{display:'flex',alignItems:'flex-start',gap:'4px',
+        cursor:'pointer',padding:'8px 2px',borderBottom:'1px solid var(--line)'}},
+        chk,
+        el('div',{},
+          el('div',{style:{fontWeight:600,fontSize:'13px'}}, c.name,
+            already.has(c.name) ? el('span',{class:'chip s',style:{marginLeft:'6px'}},'already added') : null),
+          c.menu_wording ? el('div',{class:'sb'}, c.menu_wording) : null,
+        ),
+      ));
+    });
+  }
+  renderList();
+
+  await modal('Add cocktails to ' + ev.name, form, async () => {
+    if (!selected.size) return toast('Nothing selected','bad');
+    let n = 0;
+    for (const cid of selected) {
+      const src = state.data.cocktails.find(c => c.id === cid);
+      if (!src) continue;
+      const copy = { ...src };
+      delete copy.id; delete copy.created_at;
+      copy.event_id = ev.id;
+      copy.tenant_id = state.activeTenantId;
+      const { data: nc, error } = await state.sb.from('cocktails').insert(copy).select().single();
+      if (error) { toast(`${src.name}: ${error.message}`,'bad'); continue; }
+      state.data.cocktails.push(nc);
+
+      const comps = state.data.cocktail_components.filter(x => x.cocktail_id === src.id)
+        .map(x => ({ tenant_id: state.activeTenantId, cocktail_id: nc.id,
+          ingredient_id: x.ingredient_id, prep_id: x.prep_id, quantity: x.quantity, unit: x.unit }));
+      if (comps.length) {
+        const { data: cd, error: ce } = await state.sb.from('cocktail_components').insert(comps).select();
+        if (ce) toast('Components: ' + ce.message,'bad');
+        else state.data.cocktail_components.push(...(cd || []));
+      }
+
+      const { data: ecd, error: ee } = await state.sb.from('event_cocktails')
+        .insert({ tenant_id: state.activeTenantId, event_id: ev.id, cocktail_id: nc.id, quantity: 0, sort_order: n })
+        .select().single();
+      if (ee) toast(ee.message,'bad'); else state.data.event_cocktails.push(ecd);
+      n++;
+    }
+    toast(`${n} cocktail(s) copied in`,'ok');
+    renderRoute();
+    return true;
   });
 }
 
@@ -1789,7 +2334,7 @@ async function openMenuCocktailPicker(menu) {
 
   const counter = el('div',{class:'sb',style:{marginBottom:'8px'}});
   const updateCounter = () => {
-    counter.textContent = `${selected.size} of ${state.data.cocktails.length} cocktails selected`;
+    counter.textContent = `${selected.size} of ${normalCocktails().length} cocktails selected`;
   };
 
   const q = el('input',{class:'input',placeholder:'Search cocktail…',oninput:()=>renderList()});
@@ -1806,8 +2351,8 @@ async function openMenuCocktailPicker(menu) {
 
   function shown() {
     const term = q.value.toLowerCase().trim();
-    if (!term) return state.data.cocktails;
-    return state.data.cocktails.filter(c =>
+    if (!term) return normalCocktails();
+    return normalCocktails().filter(c =>
       (c.name||'').toLowerCase().includes(term) ||
       (c.menu_wording||'').toLowerCase().includes(term));
   }
@@ -1845,7 +2390,7 @@ async function openMenuCocktailPicker(menu) {
     if (delErr) return toast(delErr.message,'bad');
     state.data.menu_cocktails = state.data.menu_cocktails.filter(mc => mc.menu_id !== menu.id);
 
-    const ordered = state.data.cocktails.filter(c => selected.has(c.id));
+    const ordered = normalCocktails().filter(c => selected.has(c.id));
     const rows = ordered.map((c,i) => ({
       tenant_id: state.activeTenantId, menu_id: menu.id, cocktail_id: c.id, sort_order: i,
     }));
@@ -2021,8 +2566,9 @@ function inlineIngredientCreator(onCreated) {
   return wrap;
 }
 
-async function openCocktailEditor(cocktail) {
+async function openCocktailEditor(cocktail, eventId = null) {
   const isNew = !cocktail;
+  const evId = cocktail ? (cocktail.event_id || null) : (eventId || null);
   const f = cocktail ? { ...cocktail } : {
     name:'', menu_wording:'', flavour_profile:'', allergens:'',
     glassware:'', ice:'', garnish:'', tools:'', procedure:'',
@@ -2076,7 +2622,7 @@ async function openCocktailEditor(cocktail) {
 
   // -- Menus section --
   const menuIds = new Set(isNew ? [] : menuIdsForCocktail(cocktail.id));
-  if (state.data.menus.length > 0) {
+  if (state.data.menus.length > 0 && !evId) {
     const menuSection = el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}});
     menuSection.appendChild(el('div',{style:{fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--ink-mute)',fontWeight:600,marginBottom:'10px'}}, 'On menus'));
 
@@ -2118,7 +2664,8 @@ async function openCocktailEditor(cocktail) {
       const idSel = el('select',{class:'input',style:{flex:1,padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
       function populateIdSel(type) {
         idSel.innerHTML = '';
-        const items = type === 'ingredient' ? state.data.ingredients : state.data.preps;
+        const items = type === 'ingredient' ? state.data.ingredients
+          : (evId ? prepsForEvent(evId) : normalPreps());
         items.forEach(it => {
           const o = el('option',{value:it.id}, it.name);
           if (it.id === row.id) o.selected = true;
@@ -2174,7 +2721,7 @@ async function openCocktailEditor(cocktail) {
       glassware: f.glassware||null, ice: f.ice||null, garnish: f.garnish||null,
       tools: f.tools||null, procedure: f.procedure||null,
       alcohol_percent: f.alcohol_percent||null, sell_price: f.sell_price||null,
-      is_active: f.is_active,
+      is_active: f.is_active, event_id: evId,
     };
 
     let cocktailId;
@@ -2183,6 +2730,13 @@ async function openCocktailEditor(cocktail) {
       if (error) return toast(error.message,'bad');
       state.data.cocktails.push(data);
       cocktailId = data.id;
+      if (evId) {
+        const n = state.data.event_cocktails.filter(x => x.event_id === evId).length;
+        const { data: ecd, error: ee } = await state.sb.from('event_cocktails')
+          .insert({ tenant_id: state.activeTenantId, event_id: evId, cocktail_id: data.id, quantity: 0, sort_order: n })
+          .select().single();
+        if (ee) toast(ee.message,'bad'); else state.data.event_cocktails.push(ecd);
+      }
     } else {
       const { error } = await state.sb.from('cocktails').update(payload).eq('id', cocktail.id);
       if (error) return toast(error.message,'bad');
@@ -2229,8 +2783,9 @@ async function openCocktailEditor(cocktail) {
 // ============================================================================
 // PREP EDITOR (admin)
 // ============================================================================
-async function openPrepEditor(prep) {
+async function openPrepEditor(prep, eventId = null) {
   const isNew = !prep;
+  const evId = prep ? (prep.event_id || null) : (eventId || null);
   const f = prep ? { ...prep } : {
     name:'', type:'PREMIX', yield_quantity:'', yield_unit:'ml',
     procedure:'', shelf_life:'',
@@ -2295,7 +2850,7 @@ async function openPrepEditor(prep) {
         // For prep type, exclude the prep being edited to avoid self-reference
         const items = type === 'ingredient'
           ? state.data.ingredients
-          : state.data.preps.filter(p => isNew || p.id !== prep.id);
+          : (evId ? prepsForEvent(evId) : normalPreps()).filter(p => isNew || p.id !== prep.id);
         items.forEach(it => {
           const o = el('option',{value:it.id}, it.name);
           if (it.id === row.id) o.selected = true;
@@ -2350,6 +2905,7 @@ async function openPrepEditor(prep) {
       name: f.name, type: f.type,
       yield_quantity: f.yield_quantity, yield_unit: f.yield_unit||'ml',
       procedure: f.procedure||null, shelf_life: f.shelf_life||null,
+      event_id: evId,
     };
 
     let prepId;
