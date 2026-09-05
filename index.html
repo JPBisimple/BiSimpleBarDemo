@@ -300,6 +300,12 @@ const SUPABASE_CONFIG = {
   anonKey: 'sb_publishable_vhcOhNuZod5hbv6p3pFn_A_sM5rydim'
 };
 
+// ---- feature flags ----
+// Sæt til true for at tænde sektionen igen. Koden er ikke slettet.
+const FEATURES = {
+  orders: false,
+};
+
 // ---- state ----
 const state = {
   sb: null,
@@ -657,7 +663,7 @@ function renderNav() {
     { hash: '#inventory', ic: '☰', label: 'Inventory' },
     { hash: '#orders',    ic: '↗', label: 'Orders' },
     { hash: '#guest',     ic: '✦', label: 'Service' },
-  ];
+  ].filter(it => it.hash !== '#orders' || FEATURES.orders);
   const nav = el('nav', { class: 'bottomnav' });
   items.forEach(it => {
     const btn = el('button', {
@@ -698,7 +704,9 @@ function renderRoute() {
     case '#prep':      return renderPreps(v);
     case '#inventory': return renderInventory(v);
     case '#menus':     return renderMenus(v);
-    case '#orders':    return renderOrders(v);
+    case '#orders':
+      if (!FEATURES.orders) { location.hash = '#index'; return renderIndex(v); }
+      return renderOrders(v);
     case '#guest':     return renderGuestShift(v);
     case '#index':
     default:           return renderIndex(v);
@@ -721,7 +729,7 @@ function renderIndex(v) {
     { hash: '#inventory', ic: '☰', label: 'Inventory' },
     { hash: '#orders',    ic: '↗', label: 'Orders' },
     { hash: '#guest',     ic: '✦', label: 'Service' },
-  ];
+  ].filter(it => it.hash !== '#orders' || FEATURES.orders);
   if (currentRole() === 'admin') items.push({ hash: '#menus', ic: '☷', label: 'Menus' });
   const hub = el('div', { class: 'hub' });
   items.forEach(it => {
