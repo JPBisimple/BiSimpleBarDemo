@@ -71,8 +71,15 @@ de oprindelige tabeller. De kørte oprindeligt på rolle `public` i stedet
 for `authenticated` som resten af skemaet — **rettet samme dag** med
 `alter policy ... to authenticated` direkte i databasen, og bekræftet
 med en ny `pg_policies`-forespørgsel (alle 12 policies står nu til
-`{authenticated}`). **Grants (`GRANT ... TO authenticated`) er stadig
-ikke bekræftet** for de 6 nye tabeller — kun policies er set direkte.
+`{authenticated}`).
+
+**Grants bekræftet 2026-09-18** via en frisk
+`information_schema.role_table_grants`-forespørgsel: `authenticated` har
+`SELECT, INSERT, UPDATE, DELETE` på alle 6 nye tabeller. `anon` har
+(som forventet, Supabase-standard ved tabelloprettelse — samme mønster
+som i HKOEDBooking) også fuldt grant inkl. `DELETE`/`TRUNCATE`, men har
+**ingen matchende RLS-policy** (alle policies er nu `to authenticated`),
+så `anon` er reelt blokeret uanset det brede grant.
 
 **Tenant-isolation på skrivninger er dobbelt sikret:** klienten stempler
 selv `tenant_id` ved insert, men `is_tenant_admin(tenant_id)`/
@@ -403,16 +410,15 @@ repo uden upload: `https://raw.githubusercontent.com/JPBisimple/BiSimpleBarDemo/
 
 ## Hvad der stadig mangler afklaring
 
-1. **Grants på de 6 nye tabeller** — policies er bekræftet (se
-   "Sikkerhedsmodel"), men `GRANT ... TO authenticated` er ikke
-   verificeret for dem. `schema.sql` har fået en forsvarsgrant tilføjet,
-   men det er ikke bekræftet, om den er nødvendig eller allerede findes.
-2. **Kolonnerne på `tenants`/`profiles`** og de partielle unikke
+1. **Kolonnerne på `tenants`/`profiles`** og de partielle unikke
    indekser på `menus` er ikke friskverificeret direkte mod databasen
    (kun fra `PROGRESS.md`/den forrige `schema.sql`) — se markeringerne i
    `schema.sql` i `Rezypedia-internal`.
-3. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
+2. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
    bevidst ikke rettet endnu — vent med at røre den, indtil der bedes om det.
+
+~~Grants på de 6 nye tabeller~~ — bekræftet 2026-09-18, se
+"Sikkerhedsmodel".
 
 ~~`to public` vs. `to authenticated` på de 6 nye tabellers RLS~~ —
 rettet 2026-09-18, se "Sikkerhedsmodel".
