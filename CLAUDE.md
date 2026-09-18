@@ -64,17 +64,15 @@ manglende grant fejler med samme fejlkode som en policy-afvisning, og de
 kan ikke skelnes fra klienten).
 
 **Bekræftet 2026-09-18 via en frisk `pg_policies`-forespørgsel:**
-policies findes rent faktisk for alle 6 nye tabeller
+policies findes for alle 6 nye tabeller
 (`menu_groups`/`menus`/`menu_cocktails`/`events`/`event_cocktails`/
 `event_prep_responsibility`), efter samme select+admin_write-mønster som
-de oprindelige tabeller. **Men de kører på rolle `public`, ikke
-`authenticated`** som alle de andre tabeller. `is_tenant_member()`/
-`is_tenant_admin()` bruger `auth.uid()`, som er `NULL` for en anonym
-bruger, så en anonym forespørgsel matcher formentlig aldrig — men det er
-en inkonsekvens i forhold til resten af skemaet, og bør rettes til
-`to authenticated` for at være eksplicit sikkert i stedet for sikkert
-ved et tilfælde. **Grants (`GRANT ... TO authenticated`) er stadig ikke
-bekræftet** for de 6 nye tabeller — kun policies er set direkte.
+de oprindelige tabeller. De kørte oprindeligt på rolle `public` i stedet
+for `authenticated` som resten af skemaet — **rettet samme dag** med
+`alter policy ... to authenticated` direkte i databasen, og bekræftet
+med en ny `pg_policies`-forespørgsel (alle 12 policies står nu til
+`{authenticated}`). **Grants (`GRANT ... TO authenticated`) er stadig
+ikke bekræftet** for de 6 nye tabeller — kun policies er set direkte.
 
 **Tenant-isolation på skrivninger er dobbelt sikret:** klienten stempler
 selv `tenant_id` ved insert, men `is_tenant_admin(tenant_id)`/
@@ -409,12 +407,12 @@ repo uden upload: `https://raw.githubusercontent.com/JPBisimple/BiSimpleBarDemo/
    "Sikkerhedsmodel"), men `GRANT ... TO authenticated` er ikke
    verificeret for dem. `schema.sql` har fået en forsvarsgrant tilføjet,
    men det er ikke bekræftet, om den er nødvendig eller allerede findes.
-2. **`to public` vs. `to authenticated`** på de 6 nye tabellers
-   RLS-policies — formentlig ufarligt i praksis, men bør rettes til
-   `authenticated` for konsistens og for at være eksplicit sikkert.
-3. **Kolonnerne på `tenants`/`profiles`** og de partielle unikke
+2. **Kolonnerne på `tenants`/`profiles`** og de partielle unikke
    indekser på `menus` er ikke friskverificeret direkte mod databasen
    (kun fra `PROGRESS.md`/den forrige `schema.sql`) — se markeringerne i
    `schema.sql` i `Rezypedia-internal`.
-4. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
+3. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
    bevidst ikke rettet endnu — vent med at røre den, indtil der bedes om det.
+
+~~`to public` vs. `to authenticated` på de 6 nye tabellers RLS~~ —
+rettet 2026-09-18, se "Sikkerhedsmodel".
