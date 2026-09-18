@@ -415,10 +415,16 @@ repo uden upload: `https://raw.githubusercontent.com/JPBisimple/BiSimpleBarDemo/
 
 ## Hvad der stadig mangler afklaring
 
-1. **Kolonnerne på `tenants`/`profiles`** og de partielle unikke
-   indekser på `menus` er ikke friskverificeret direkte mod databasen
-   (kun fra `PROGRESS.md`/den forrige `schema.sql`) — se markeringerne i
-   `schema.sql` i `Rezypedia-internal`.
+Alle punkter fra den oprindelige liste er nu lukket. Ét mindre punkt
+tilbage, opdaget undervejs:
+
+1. **Composite FK-indekser (`UNIQUE(id, tenant_id)`) på `events` og
+   `menu_groups`** — tilføjet i `schema.sql` efter samme mønster som
+   `cocktails`/`preps`/`menus` (nu bekræftet), men ikke friskverificeret
+   for lige netop disse to tabeller via `pg_indexes`.
+
+~~Kolonnerne på `tenants`/`profiles` og de partielle unikke indekser på
+`menus`~~ — bekræftet 2026-09-18.
 
 ~~Grants på de 6 nye tabeller~~ — bekræftet 2026-09-18, se
 "Sikkerhedsmodel".
