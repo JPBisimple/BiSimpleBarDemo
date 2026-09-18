@@ -13,8 +13,8 @@ efterladte rester af det gamle navn, ikke et aktivt navn.
 
 > Afsnit markeret `<!-- UDFYLD -->` er stadig ubekræftet. Alt andet er
 > enten verificeret direkte mod `index.html`, eller kommer fra
-> `PROGRESS.md` (statusdokument holdt uden for dette repo — se "Filer
-> uden for repoet" nederst).
+> `PROGRESS.md` i det private repo [JPBisimple/Rezypedia-internal](https://github.com/JPBisimple/Rezypedia-internal)
+> — se "Filer uden for repoet" nederst.
 
 ---
 
@@ -29,11 +29,11 @@ efterladte rester af det gamle navn, ikke et aktivt navn.
   direkte i `index.html` (`SUPABASE_CONFIG`). Ikke et brud i sig selv
   (nøglen er `sb_publishable_...`, beregnet til at være offentlig).
 - **Workflow er nu lokal git/CLI**, ikke længere kun GitHub web UI som
-  `PROGRESS.md` (uden for repoet) beskriver — den fil er forældet på
-  dette punkt. Ændringer laves lokalt og pushes til `main`.
+  `PROGRESS.md` beskriver — den fil er forældet på dette punkt.
+  Ændringer laves lokalt og pushes til `main`.
 - `renderSetup()` er en død kodesti fra den oprindelige skabelon — den
   henviser til `schema.sql`/`seed.sql`, som ikke ligger i dette repo, men
-  findes som separate filer uden for git (se nederst).
+  i [JPBisimple/Rezypedia-internal](https://github.com/JPBisimple/Rezypedia-internal) (privat, se nederst).
 
 ## Sikkerhedsmodel
 
@@ -183,8 +183,9 @@ i databasen (ikke kun konvention i klienten).
 ### Vigtige faldgruber i skemaet
 
 - Kolonnen hedder **`purchase_price`** — ikke `purchase_price_dkk`.
-  `backbar_seed.json` (uden for repoet) bruger stadig det gamle
-  kolonnenavn — **kør det ikke direkte**, det vil fejle.
+  Et ældre `backbar_seed.json` (ikke en del af `Rezypedia-internal`)
+  bruger stadig det gamle kolonnenavn — **kør det ikke direkte**, det
+  vil fejle. `seed.sql` i `Rezypedia-internal` er den gyldige, opdaterede version.
 - **Navneunikhed er ikke ét simpelt constraint.** De gamle
   `cocktails_tenant_id_name_key` / `preps_tenant_id_name_key` er droppet
   og erstattet af partielle unikke indekser, så en eventkopi må hedde
@@ -354,20 +355,22 @@ Events-modul, der fejler foran en kunde, er værre end slet intet Events.
 
 ---
 
-## Filer uden for repoet
+## Filer uden for dette repo
 
-Disse ligger **ikke** i git, men i et separat Claude-projekt/OneDrive —
-relevante at spørge efter, hvis en opgave kræver dem:
+Dette repo (`BiSimpleBarDemo`) er **offentligt** — det er derfor GitHub
+Pages kan hoste det gratis. Interne dokumenter, der ikke må være
+offentlige (kundenavne, deadlines, skema, seed-data), ligger derfor i et
+**separat, privat** repo: [JPBisimple/Rezypedia-internal](https://github.com/JPBisimple/Rezypedia-internal).
 
-| Fil | Beskrivelse |
-|---|---|
-| `PROGRESS.md` | Statusdokument — source of truth, dette CLAUDE.md er delvist bygget på det |
-| `rezypedia_change_request.md` | Ændringsønsker fra medstiftere, juli 2026 |
-| `backbar_app_prompt.md` | Oprindelig kravspecifikation (gammelt navn) |
-| `backbar_seed.json` | Seed-data — **bruger det forkerte kolonnenavn `purchase_price_dkk`**, kør ikke direkte |
-| `manual_bartender.html` / `manual_admin.html` | Kundemanualer, dansk — dækker **ikke** Menus, Events eller de nye udskrifter endnu |
-| `Razzia_Cocktail_Index.xlsx` | — |
-| `schema.sql` / `seed.sql` | Nævnt af `renderSetup()`s onboarding-tekst i koden, men ikke fundet i repoet — ligger formentlig sammen med ovenstående |
+| Fil | Ligger i | Beskrivelse |
+|---|---|---|
+| `PROGRESS.md` | `Rezypedia-internal` | Statusdokument — source of truth, dette CLAUDE.md er delvist bygget på det |
+| `schema.sql` / `seed.sql` | `Rezypedia-internal` | Det gyldige, opdaterede skema/seed — nævnt af `renderSetup()`s onboarding-tekst i koden |
+| `Manualer/manual_admin.html` + `manual_bartender.html` (+ `_es`-varianter, samt PDF-udgaver) | `Rezypedia-internal` | Kundemanualer, dansk (`lang="da"`) og spansk — dækker **ikke** Menus, Events eller de nye udskrifter endnu |
+| `rezypedia_change_request.md` | Stadig kun i OneDrive (`__BackBar`) | Ændringsønsker fra medstiftere, juli 2026 — ikke flyttet endnu |
+| `backbar_app_prompt.md` | Stadig kun i OneDrive | Oprindelig kravspecifikation (gammelt navn) — ikke flyttet endnu |
+| `backbar_seed.json` | Stadig kun i OneDrive | **Forældet** — bruger det forkerte kolonnenavn `purchase_price_dkk`. Brug `seed.sql` i `Rezypedia-internal` i stedet |
+| `Razzia_Cocktail_Index.xlsx` | Stadig kun i OneDrive | — |
 
 Den aktuelle `index.html` kan altid hentes direkte fra det offentlige
 repo uden upload: `https://raw.githubusercontent.com/JPBisimple/BiSimpleBarDemo/main/index.html`.
