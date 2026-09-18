@@ -94,14 +94,19 @@ brugerdata escapes automatisk. Attributten `html:` (sætter `innerHTML`)
 bruges kun til statisk brand-markup ("rezy·pedia") — aldrig med bruger-
 eller DB-data. Hold det sådan.
 
-### 🔴 Kendt, uløst fejl — cost/margin synlig for ikke-admin
+### ✅ Rettet 2026-09-18 — cost/margin var synlig for ikke-admin
 
-`renderCocktailDetail` viser kostpris-kortet **uden rolletjek**, og
-margin-chippen i cocktail-listen har samme problem. Høj prioritet,
-**ikke rettet endnu**. Ret dette, hvis du rører ved
-`renderCocktailDetail`/`renderCocktails` — det er ikke en del af
-opgaven i sig selv, men bør nævnes/tjekkes, hvis du alligevel er i det
-område.
+`renderCocktailDetail` viste kostpris-kortet (kost/profit/margin) uden
+rolletjek, og margin-/⚠-chippen i cocktail-listen (`renderCocktails`)
+havde samme problem. Begge steder er nu gatet bag `isAdmin` — kun
+salgsprisen (`sell_price`, kundens pris, ikke fortrolig) vises stadig
+for ikke-admins, flyttet ind i cocktail-detaljens hero-sektion i stedet
+for i cost-kortet. **Bemærk:** dette er kun rettet i klienten
+(`index.html`) — der er ingen RLS-mekanisme til at skjule enkelte
+kolonner i en række, så en teknisk bruger, der selv kalder
+`state.sb.from('cocktails').select('sell_price,...')`, kan stadig se
+`sell_price` (aldrig kost/margin, da de udregnes klient-side af
+`cocktailCost()`, ikke gemt i databasen som en kolonne).
 
 ### Andre kendte svagheder
 
@@ -256,7 +261,7 @@ ukendte typer).
 | Sektion | Hash | Adgang | Status |
 |---|---|---|---|
 | Home (hub) | `#index` | Alle | ✅ |
-| Cocktails | `#cocktails` | Admin CRUD, bartender read | ✅ (men se 🔴 cost/margin-lækage ovenfor) |
+| Cocktails | `#cocktails` | Admin CRUD, bartender read | ✅ |
 | Prep | `#prep` | Admin CRUD, bartender read | ✅ |
 | Inventory | `#inventory` | Admin CRUD, bartender stock | ✅ |
 | Service | `#guest` | Alle | ✅ |
@@ -414,11 +419,12 @@ repo uden upload: `https://raw.githubusercontent.com/JPBisimple/BiSimpleBarDemo/
    indekser på `menus` er ikke friskverificeret direkte mod databasen
    (kun fra `PROGRESS.md`/den forrige `schema.sql`) — se markeringerne i
    `schema.sql` i `Rezypedia-internal`.
-2. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
-   bevidst ikke rettet endnu — vent med at røre den, indtil der bedes om det.
 
 ~~Grants på de 6 nye tabeller~~ — bekræftet 2026-09-18, se
 "Sikkerhedsmodel".
 
 ~~`to public` vs. `to authenticated` på de 6 nye tabellers RLS~~ —
 rettet 2026-09-18, se "Sikkerhedsmodel".
+
+~~🔴 Cost/margin-lækagen til ikke-admin~~ — rettet 2026-09-18, se
+"Sikkerhedsmodel".

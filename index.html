@@ -973,6 +973,7 @@ function renderCocktails(v) {
         ),
         el('div', { class: 'right' },
           el('div', { style:{fontWeight:600} }, dkk(c.sell_price)),
+          !isAdmin ? null :
           missing.length > 0
             ? el('div', { class:'chip warn', style:{marginTop:'4px'} }, '⚠ price')
             : margin != null
@@ -1008,30 +1009,33 @@ function renderCocktailDetail(v, id) {
     el('div', {}, el('b', {}, 'Glass'), c.glassware || '—'),
     el('div', {}, el('b', {}, 'Ice'), c.ice || '—'),
     el('div', {}, el('b', {}, 'ABV'), num(c.alcohol_percent,1) + '%'),
+    el('div', {}, el('b', {}, 'Price'), dkk(c.sell_price)),
   ));
   v.appendChild(hero);
 
-  // Cost panel
-  const costCard = el('div', { class:'card' });
-  costCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Cost breakdown')));
-  const cb = el('div',{class:'card-bd'});
-  const cg = el('div',{class:'cost-grid'});
-  cg.appendChild(el('div',{class:'cost-tile'},
-    el('div',{class:'lab'},'Sell price'), el('div',{class:'val'}, dkk(c.sell_price))));
-  cg.appendChild(el('div',{class:'cost-tile' + (missing.length ? ' warn':'')},
-    el('div',{class:'lab'},'Cost'), el('div',{class:'val'}, missing.length ? '—' : dkk(cost))));
-  cg.appendChild(el('div',{class:'cost-tile'},
-    el('div',{class:'lab'},'Gross profit'), el('div',{class:'val'}, missing.length ? '—' : dkk(profit))));
-  cg.appendChild(el('div',{class:'cost-tile ' + marginKind},
-    el('div',{class:'lab'},'Margin'), el('div',{class:'val'}, missing.length ? '—' : (num(margin,1)+'%'))));
-  cb.appendChild(cg);
-  if (missing.length) {
-    cb.appendChild(el('div',{style:{marginTop:'10px'},class:'chip warn'}, '⚠ Missing price for: ' + missing.join(', ')));
-  } else if (margin != null && margin < 70) {
-    cb.appendChild(el('div',{style:{marginTop:'10px'},class:'chip warn'}, '⚠ Margin below 70%'));
+  // Cost panel — kostpris/margin er kun for admin, se CLAUDE.md "Sikkerhedsmodel"
+  if (isAdmin) {
+    const costCard = el('div', { class:'card' });
+    costCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Cost breakdown')));
+    const cb = el('div',{class:'card-bd'});
+    const cg = el('div',{class:'cost-grid'});
+    cg.appendChild(el('div',{class:'cost-tile'},
+      el('div',{class:'lab'},'Sell price'), el('div',{class:'val'}, dkk(c.sell_price))));
+    cg.appendChild(el('div',{class:'cost-tile' + (missing.length ? ' warn':'')},
+      el('div',{class:'lab'},'Cost'), el('div',{class:'val'}, missing.length ? '—' : dkk(cost))));
+    cg.appendChild(el('div',{class:'cost-tile'},
+      el('div',{class:'lab'},'Gross profit'), el('div',{class:'val'}, missing.length ? '—' : dkk(profit))));
+    cg.appendChild(el('div',{class:'cost-tile ' + marginKind},
+      el('div',{class:'lab'},'Margin'), el('div',{class:'val'}, missing.length ? '—' : (num(margin,1)+'%'))));
+    cb.appendChild(cg);
+    if (missing.length) {
+      cb.appendChild(el('div',{style:{marginTop:'10px'},class:'chip warn'}, '⚠ Missing price for: ' + missing.join(', ')));
+    } else if (margin != null && margin < 70) {
+      cb.appendChild(el('div',{style:{marginTop:'10px'},class:'chip warn'}, '⚠ Margin below 70%'));
+    }
+    costCard.appendChild(cb);
+    v.appendChild(costCard);
   }
-  costCard.appendChild(cb);
-  v.appendChild(costCard);
 
   // Components
   const compCard = el('div',{class:'card'});
