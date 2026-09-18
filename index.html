@@ -1971,19 +1971,32 @@ function renderEventDetail(v, id) {
   if (isAdmin) {
     const t = eventTotals(id);
     const box = el('div',{class:'card',style:{marginTop:'16px'}});
-    box.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Event total')));
-    const line = (k, val) => box.appendChild(el('div',{class:'row'},
+    const hd = el('div',{class:'card-hd'}, el('h2',{},'Event total'));
+    const toggle = el('input',{type:'checkbox',checked:true});
+    hd.appendChild(el('label',{class:'sb no-print',
+      style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer',marginLeft:'auto'}},
+      toggle, 'Show costs'));
+    box.appendChild(hd);
+    const body = el('div',{});
+    box.appendChild(body);
+    const line = (k, val) => body.appendChild(el('div',{class:'row'},
       el('div',{class:'grow'}, k), el('div',{class:'right',style:{fontWeight:600}}, val)));
-    line('Drinks', String(t.drinks));
-    const incomplete = t.missing.length > 0;
-    line('Cost', incomplete ? '—' : dkk(t.cost));
-    line('Revenue', dkk(t.revenue));
-    line('Gross profit', incomplete ? '—' : dkk(t.revenue - t.cost));
-    line('Margin', (incomplete || t.margin == null) ? '—' : num(t.margin,1) + '%');
-    if (t.missing.length) {
-      box.appendChild(el('div',{class:'sb',style:{padding:'10px 12px',color:'var(--ink-soft)'}},
-        '⚠ Missing ingredient prices in: ' + t.missing.join(', ') + '. Cost is understated.'));
+    function renderTotals() {
+      body.innerHTML = '';
+      line('Drinks', String(t.drinks));
+      if (!toggle.checked) return;
+      const incomplete = t.missing.length > 0;
+      line('Cost', incomplete ? '—' : dkk(t.cost));
+      line('Revenue', dkk(t.revenue));
+      line('Gross profit', incomplete ? '—' : dkk(t.revenue - t.cost));
+      line('Margin', (incomplete || t.margin == null) ? '—' : num(t.margin,1) + '%');
+      if (t.missing.length) {
+        body.appendChild(el('div',{class:'sb',style:{padding:'10px 12px',color:'var(--ink-soft)'}},
+          '⚠ Missing ingredient prices in: ' + t.missing.join(', ') + '. Cost is understated.'));
+      }
     }
+    toggle.addEventListener('change', renderTotals);
+    renderTotals();
     v.appendChild(box);
   }
 
