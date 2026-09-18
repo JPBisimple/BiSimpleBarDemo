@@ -1041,7 +1041,7 @@ function renderCocktailDetail(v, id) {
   const compCard = el('div',{class:'card'});
   compCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Recipe')));
   comps.forEach(comp => {
-    let label = '?', sub = '';
+    let label = '?', sub = '', prepId = null;
     if (comp.ingredient_id) {
       const ing = state.data.ingredients.find(i => i.id === comp.ingredient_id);
       label = ing?.name || 'ingredient';
@@ -1050,8 +1050,12 @@ function renderCocktailDetail(v, id) {
       const p = state.data.preps.find(x => x.id === comp.prep_id);
       label = p?.name || 'prep';
       sub = p?.type || 'PREP';
+      prepId = p?.id || null;
     }
-    compCard.appendChild(el('div',{class:'row'},
+    const rowAttrs = prepId
+      ? { class:'row click', onclick:() => location.hash = '#prep/' + prepId }
+      : { class:'row' };
+    compCard.appendChild(el('div',rowAttrs,
       el('div',{class:'grow'},
         el('div',{class:'ttl'}, label),
         el('div',{class:'sb'}, sub),
