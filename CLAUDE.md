@@ -61,7 +61,20 @@ Hjælpefunktioner i databasen: `is_tenant_member(uuid)`,
 have `GRANT SELECT, INSERT, UPDATE, DELETE ... TO authenticated` —
 RLS-policies alene er ikke nok (samme faldgrube som i HKOEDBooking:
 manglende grant fejler med samme fejlkode som en policy-afvisning, og de
-kan ikke skelnes fra klienten). <!-- UDFYLD: er grant + begge policies bekræftet anvendt på menu_groups/menus/menu_cocktails/events/event_cocktails/event_prep_responsibility (tilføjet september 2026), eller kun på de oprindelige tabeller? -->
+kan ikke skelnes fra klienten).
+
+**Bekræftet 2026-09-18 via en frisk `pg_policies`-forespørgsel:**
+policies findes rent faktisk for alle 6 nye tabeller
+(`menu_groups`/`menus`/`menu_cocktails`/`events`/`event_cocktails`/
+`event_prep_responsibility`), efter samme select+admin_write-mønster som
+de oprindelige tabeller. **Men de kører på rolle `public`, ikke
+`authenticated`** som alle de andre tabeller. `is_tenant_member()`/
+`is_tenant_admin()` bruger `auth.uid()`, som er `NULL` for en anonym
+bruger, så en anonym forespørgsel matcher formentlig aldrig — men det er
+en inkonsekvens i forhold til resten af skemaet, og bør rettes til
+`to authenticated` for at være eksplicit sikkert i stedet for sikkert
+ved et tilfælde. **Grants (`GRANT ... TO authenticated`) er stadig ikke
+bekræftet** for de 6 nye tabeller — kun policies er set direkte.
 
 **Tenant-isolation på skrivninger er dobbelt sikret:** klienten stempler
 selv `tenant_id` ved insert, men `is_tenant_admin(tenant_id)`/
@@ -87,9 +100,20 @@ område.
 
 ### Andre kendte svagheder
 
-- Ingen rolletjek i selve mutation-funktionerne, kun i render-laget —
-  hold dig til samme UI-gating + RLS-mønster for nye admin-only
-  handlinger.
+- Ingen rolletjek i selve mutation-funktionerne i klienten, kun i
+  render-laget — hold dig til samme UI-gating + RLS-mønster for nye
+  admin-only handlinger. **Undtagelse:** `ingredients` har rent faktisk
+  en server-side trigger (`guard_ingredient_update` i `schema.sql`), der
+  forhindrer en ikke-admin i at ændre andet end `current_stock`, selvom
+  RLS-policyen tillader opdatering for enhver tenant-medlem. Det er et
+  reelt, håndhævet værn — ikke kun UI-gating — og et mønster, der er
+  værd at genbruge, hvis en fremtidig tabel har samme behov (en kolonne
+  alle må ændre, resten kun admin).
+- Profiler er ikke tenant-afgrænsede: `profiles_select`-policyen i
+  `schema.sql` er `using (true)` for enhver `authenticated` bruger —
+  enhver indlogget bruger kan altså se navn/mail på enhver anden bruger
+  i systemet, uanset tenant. Bevidst (til at vise navne på tværs), men
+  værd at kende, hvis `profiles` nogensinde bruges til mere end det.
 - `SUPABASE_CONFIG` hardkodet i `index.html` i stedet for separat
   `config.js` — gør det sværere at have adskilte dev/prod-miljøer.
 - `FEATURES.orders = false` slår hele Orders-sektionen fra, koden er
@@ -135,9 +159,11 @@ Main og sætte dem `is_active = false`, men **det er ikke gjort endnu.**
 ### Roller
 
 Kun `'admin'` tjekkes eksplicit i klientkoden (`currentRole()`, læst fra
-`memberships.role` for aktiv tenant). Andre rolleværdier er ikke
-begrænset af klienten til et fast sæt, men hvilke der reelt bruges ud
-over `'admin'`, er ikke bekræftet. <!-- UDFYLD: hvilke roller findes i memberships.role ud over 'admin' — er der en "bartender"/medarbejder-rolle? -->
+`memberships.role` for aktiv tenant). **Bekræftet fra `schema.sql`:**
+`memberships.role` har `check (role in ('admin','bartender'))` — der
+findes kun disse to roller. En `'bartender'` får ingen særlig
+klient-adfærd (klienten tjekker kun eksplicit for `'admin'`), men er
+den, der reelt bruges til alle ikke-admin-medlemmer.
 
 ### Login
 
@@ -379,9 +405,16 @@ repo uden upload: `https://raw.githubusercontent.com/JPBisimple/BiSimpleBarDemo/
 
 ## Hvad der stadig mangler afklaring
 
-1. **Grant + policies bekræftet på de nye tabeller** (menu/event-gruppen,
-   tilføjet september 2026) — er de sat op efter samme mønster som de
-   oprindelige tabeller?
-2. **Roller ud over `'admin'`** i `memberships.role`.
-3. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
+1. **Grants på de 6 nye tabeller** — policies er bekræftet (se
+   "Sikkerhedsmodel"), men `GRANT ... TO authenticated` er ikke
+   verificeret for dem. `schema.sql` har fået en forsvarsgrant tilføjet,
+   men det er ikke bekræftet, om den er nødvendig eller allerede findes.
+2. **`to public` vs. `to authenticated`** på de 6 nye tabellers
+   RLS-policies — formentlig ufarligt i praksis, men bør rettes til
+   `authenticated` for konsistens og for at være eksplicit sikkert.
+3. **Kolonnerne på `tenants`/`profiles`** og de partielle unikke
+   indekser på `menus` er ikke friskverificeret direkte mod databasen
+   (kun fra `PROGRESS.md`/den forrige `schema.sql`) — se markeringerne i
+   `schema.sql` i `Rezypedia-internal`.
+4. **🔴 Cost/margin-lækagen til ikke-admin** (se "Sikkerhedsmodel") er
    bevidst ikke rettet endnu — vent med at røre den, indtil der bedes om det.
