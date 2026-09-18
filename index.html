@@ -1041,20 +1041,26 @@ function renderCocktailDetail(v, id) {
   const compCard = el('div',{class:'card'});
   compCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Recipe')));
   comps.forEach(comp => {
-    let label = '?', sub = '', prepId = null;
+    let label = '?', sub = '', prepId = null, ingredient = null;
     if (comp.ingredient_id) {
       const ing = state.data.ingredients.find(i => i.id === comp.ingredient_id);
       label = ing?.name || 'ingredient';
       sub = ing?.category || '';
+      ingredient = ing || null;
     } else if (comp.prep_id) {
       const p = state.data.preps.find(x => x.id === comp.prep_id);
       label = p?.name || 'prep';
       sub = p?.type || 'PREP';
       prepId = p?.id || null;
     }
-    const rowAttrs = prepId
-      ? { class:'row click', onclick:() => location.hash = '#prep/' + prepId }
-      : { class:'row' };
+    // Preps jump to their detail page; ingredients open the editor, admin-only —
+    // it exposes purchase_price, same cost-data gate as the Inventory row click.
+    let rowAttrs = { class:'row' };
+    if (prepId) {
+      rowAttrs = { class:'row click', onclick:() => location.hash = '#prep/' + prepId };
+    } else if (ingredient && isAdmin) {
+      rowAttrs = { class:'row click', onclick:() => openIngredientEditor(ingredient) };
+    }
     compCard.appendChild(el('div',rowAttrs,
       el('div',{class:'grow'},
         el('div',{class:'ttl'}, label),
