@@ -808,6 +808,7 @@ function renderNav() {
     { hash: '#inventory', ic: '☰', label: 'Inventory' },
     { hash: '#orders',    ic: '↗', label: 'Orders' },
     { hash: '#guest',     ic: '✦', label: 'Service' },
+    { hash: '#events',    ic: '◈', label: 'Events' },
   ].filter(it => it.hash !== '#orders' || FEATURES.orders);
   const nav = el('nav', { class: 'bottomnav' });
   items.forEach(it => {
