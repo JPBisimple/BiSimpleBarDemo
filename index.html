@@ -314,9 +314,8 @@ const state = {
   activeTenantId: null,
   route: '#index',
   data: {               // cached for active tenant
-    ingredients: [],
-    preps: [],
-    prep_components: [],
+    ingredients: [],            // ingredienser OG preps — en prep er en række med stykliste
+    ingredient_components: [],  // styklister (parent_id -> component_id)
     cocktails: [],
     cocktail_components: [],
     menu_groups: [],
@@ -474,10 +473,9 @@ function setupRealtime() {
 async function loadAll() {
   state.loading = true;
   const tid = state.activeTenantId;
-  const [ing, preps, pc, cocks, cc, mg, mn, mc, ev, ec, epr] = await Promise.all([
+  const [ing, ic, cocks, cc, mg, mn, mc, ev, ec, epr] = await Promise.all([
     state.sb.from('ingredients').select('*').eq('tenant_id', tid).order('category').order('name'),
-    state.sb.from('preps').select('*').eq('tenant_id', tid).order('type').order('name'),
-    state.sb.from('prep_components').select('*').eq('tenant_id', tid),
+    state.sb.from('ingredient_components').select('*').eq('tenant_id', tid),
     state.sb.from('cocktails').select('*').eq('tenant_id', tid).order('name'),
     state.sb.from('cocktail_components').select('*').eq('tenant_id', tid),
     state.sb.from('menu_groups').select('*').eq('tenant_id', tid).order('sort_order').order('name'),
@@ -488,10 +486,9 @@ async function loadAll() {
     state.sb.from('event_prep_responsibility').select('*').eq('tenant_id', tid),
   ]);
   if (ing.error)   toast('Ingredients: ' + ing.error.message, 'bad');
-  if (preps.error) toast('Preps: ' + preps.error.message, 'bad');
-  state.data.ingredients         = ing.data || [];
-  state.data.preps               = preps.data || [];
-  state.data.prep_components     = pc.data || [];
+  if (ic.error)    toast('Components: ' + ic.error.message, 'bad');
+  state.data.ingredients            = ing.data || [];
+  state.data.ingredient_components  = ic.data || [];
   state.data.cocktails           = cocks.data || [];
   state.data.cocktail_components = cc.data || [];
   state.data.menu_groups         = mg.data || [];
@@ -562,14 +559,22 @@ function menuLabel(menu) {
 // EVENT HELPERS
 // ============================================================================
 
-// Cocktails og preps uden event_id er "biblioteket" — det normale sortiment
-const normalCocktails = () => state.data.cocktails.filter(c => !c.event_id);
-const normalPreps     = () => state.data.preps.filter(p => !p.event_id);
-const eventById       = id => state.data.events.find(e => e.id === id) || null;
+// Ingredienser og preps ligger i samme tabel. En række er en prep, hvis den
+// har en stykliste (rækker i ingredient_components) eller en prep_type.
+const itemById      = id => state.data.ingredients.find(i => i.id === id) || null;
+const hasComponents = id => state.data.ingredient_components.some(c => c.parent_id === id);
+const isPrepItem    = i => !!i && (!!i.prep_type || hasComponents(i.id));
+const componentsOf  = id => state.data.ingredient_components.filter(c => c.parent_id === id);
+
+// Rækker uden event_id er "biblioteket" — det normale sortiment
+const normalCocktails   = () => state.data.cocktails.filter(c => !c.event_id);
+const normalPreps       = () => state.data.ingredients.filter(i => !i.event_id && isPrepItem(i));
+const pureIngredients   = () => state.data.ingredients.filter(i => !i.event_id && !isPrepItem(i));
+const eventById         = id => state.data.events.find(e => e.id === id) || null;
 
 // Preps der må bruges i et event: biblioteket + eventets egne
 const prepsForEvent = eventId =>
-  state.data.preps.filter(p => !p.event_id || p.event_id === eventId);
+  state.data.ingredients.filter(i => (!i.event_id || i.event_id === eventId) && isPrepItem(i));
 
 function prepResponsible(eventId, prepId) {
   const r = state.data.event_prep_resp.find(x => x.event_id === eventId && x.prep_id === prepId);
@@ -583,19 +588,19 @@ function prepsUsedByEvent(eventId) {
     if (seen.has(prepId)) return;
     seen.add(prepId);
     if (!found.has(prepId)) found.set(prepId, depth);
-    state.data.prep_components
-      .filter(pc => pc.prep_id === prepId && pc.child_prep_id)
-      .forEach(pc => walk(pc.child_prep_id, depth + 1, seen));
+    componentsOf(prepId)
+      .filter(pc => isPrepItem(itemById(pc.component_id)))
+      .forEach(pc => walk(pc.component_id, depth + 1, seen));
   };
   state.data.event_cocktails
     .filter(ec => ec.event_id === eventId)
     .forEach(ec => {
       state.data.cocktail_components
-        .filter(cc => cc.cocktail_id === ec.cocktail_id && cc.prep_id)
-        .forEach(cc => walk(cc.prep_id, 0, new Set()));
+        .filter(cc => cc.cocktail_id === ec.cocktail_id && isPrepItem(itemById(cc.ingredient_id)))
+        .forEach(cc => walk(cc.ingredient_id, 0, new Set()));
     });
   return [...found.keys()]
-    .map(id => state.data.preps.find(p => p.id === id))
+    .map(id => itemById(id))
     .filter(Boolean)
     .sort((a,b) => a.name.localeCompare(b.name));
 }
@@ -624,22 +629,22 @@ function computeEventLists(eventId) {
 
   // Udfold en prep ned i råvarer. target = hvilken liste ingredienserne havner på.
   function expand(prepId, amount, target, seen) {
-    const p = state.data.preps.find(x => x.id === prepId);
+    const p = itemById(prepId);
     if (!p) return;
     if (seen.has(prepId)) { warnings.push(`${p.name} indeholder sig selv — springet over`); return; }
     if (!p.yield_quantity) { warnings.push(`${p.name} mangler yield — kan ikke skaleres`); return; }
     const next = new Set(seen); next.add(prepId);
     const factor = amount / p.yield_quantity;
-    state.data.prep_components.filter(pc => pc.prep_id === prepId).forEach(pc => {
+    componentsOf(prepId).forEach(pc => {
       const q = (pc.quantity || 0) * factor;
-      if (pc.ingredient_id) bump(target.ingredients, pc.ingredient_id, q, pc.unit);
-      else if (pc.child_prep_id) {
+      if (!isPrepItem(itemById(pc.component_id))) bump(target.ingredients, pc.component_id, q, pc.unit);
+      else {
         // Inde i en værts-prep hører hele kæden til værten
         if (target === host) {
-          bump(host.preps, pc.child_prep_id, q, pc.unit);
-          expand(pc.child_prep_id, q, host, next);
+          bump(host.preps, pc.component_id, q, pc.unit);
+          expand(pc.component_id, q, host, next);
         } else {
-          routePrep(pc.child_prep_id, q, pc.unit, next);
+          routePrep(pc.component_id, q, pc.unit, next);
         }
       }
     });
@@ -669,8 +674,8 @@ function computeEventLists(eventId) {
         .forEach(cc => {
           const q = (cc.quantity || 0) * n;
           // Ingredienser direkte i en cocktail er altid barens
-          if (cc.ingredient_id) bump(bar.ingredients, cc.ingredient_id, q, cc.unit);
-          else if (cc.prep_id) routePrep(cc.prep_id, q, cc.unit, new Set());
+          if (isPrepItem(itemById(cc.ingredient_id))) routePrep(cc.ingredient_id, q, cc.unit, new Set());
+          else bump(bar.ingredients, cc.ingredient_id, q, cc.unit);
         });
     });
 
@@ -703,33 +708,30 @@ function ingredientPricePerUnit(ing) {
 }
 
 /**
- * Calculates price per unit (of yield_unit) for a prep.
- * Recursive via child_preps. Returns null if any component is missing a price.
+ * Pris pr. enhed for en række i ingredients-tabellen.
+ * - Ren ingrediens: indkøbspris / indkøbsstørrelse.
+ * - Prep (har stykliste): summen af komponenternes pris / yield_quantity,
+ *   rekursivt. Returnerer null hvis en komponent mangler pris.
  *
  * KNOWN LIMITATION: we do not convert between units (gr vs ml).
  * Sum of component costs is divided by yield_quantity regardless of units.
  */
-function prepPricePerUnit(prepId, visited = new Set()) {
-  if (visited.has(prepId)) return null; // cycle guard
-  visited.add(prepId);
-  const prep = state.data.preps.find(p => p.id === prepId);
-  if (!prep) return null;
-  const comps = state.data.prep_components.filter(c => c.prep_id === prepId);
+function itemCostPerUnit(id, visited = new Set()) {
+  if (visited.has(id)) return null; // cycle guard
+  visited.add(id);
+  const item = itemById(id);
+  if (!item) return null;
+  if (!isPrepItem(item)) return ingredientPricePerUnit(item);
+  const comps = componentsOf(id);
   if (comps.length === 0) return null;
   let total = 0;
   for (const c of comps) {
-    let costPer = null;
-    if (c.ingredient_id) {
-      const ing = state.data.ingredients.find(i => i.id === c.ingredient_id);
-      costPer = ingredientPricePerUnit(ing);
-    } else if (c.child_prep_id) {
-      costPer = prepPricePerUnit(c.child_prep_id, new Set(visited));
-    }
+    const costPer = itemCostPerUnit(c.component_id, new Set(visited));
     if (costPer == null) return null;
     total += costPer * c.quantity;
   }
-  if (!prep.yield_quantity) return null;
-  return total / prep.yield_quantity;
+  if (!item.yield_quantity) return null;
+  return total / item.yield_quantity;
 }
 
 function cocktailCost(cocktailId) {
@@ -738,18 +740,9 @@ function cocktailCost(cocktailId) {
   let total = 0;
   const missing = [];
   for (const c of comps) {
-    let costPer = null;
-    let name = '?';
-    if (c.ingredient_id) {
-      const ing = state.data.ingredients.find(i => i.id === c.ingredient_id);
-      name = ing?.name || 'ingredient';
-      costPer = ingredientPricePerUnit(ing);
-    } else if (c.prep_id) {
-      const p = state.data.preps.find(x => x.id === c.prep_id);
-      name = p?.name || 'prep';
-      costPer = prepPricePerUnit(c.prep_id);
-    }
-    if (costPer == null) { missing.push(name); continue; }
+    const item = itemById(c.ingredient_id);
+    const costPer = itemCostPerUnit(c.ingredient_id);
+    if (costPer == null) { missing.push(item?.name || 'ingredient'); continue; }
     total += costPer * c.quantity;
   }
   return { cost: total, missing };
@@ -1043,16 +1036,14 @@ function renderCocktailDetail(v, id) {
   compCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Recipe')));
   comps.forEach(comp => {
     let label = '?', sub = '', prepId = null, ingredient = null;
-    if (comp.ingredient_id) {
-      const ing = state.data.ingredients.find(i => i.id === comp.ingredient_id);
-      label = ing?.name || 'ingredient';
-      sub = ing?.category || '';
-      ingredient = ing || null;
-    } else if (comp.prep_id) {
-      const p = state.data.preps.find(x => x.id === comp.prep_id);
-      label = p?.name || 'prep';
-      sub = p?.type || 'PREP';
-      prepId = p?.id || null;
+    const item = itemById(comp.ingredient_id);
+    label = item?.name || 'ingredient';
+    if (isPrepItem(item)) {
+      sub = item.prep_type || 'PREP';
+      prepId = item.id;
+    } else {
+      sub = item?.category || '';
+      ingredient = item;
     }
     // Preps jump to their detail page; ingredients open the editor, admin-only —
     // it exposes purchase_price, same cost-data gate as the Inventory row click.
@@ -1130,13 +1121,8 @@ function renderPreps(v) {
 
   // Navnene på det en prep indeholder — ingredienser og child-preps
   function componentNames(prepId) {
-    return state.data.prep_components
-      .filter(c => c.prep_id === prepId)
-      .map(c => {
-        if (c.ingredient_id) return state.data.ingredients.find(i => i.id === c.ingredient_id)?.name;
-        if (c.child_prep_id) return state.data.preps.find(p => p.id === c.child_prep_id)?.name;
-        return null;
-      })
+    return componentsOf(prepId)
+      .map(c => itemById(c.component_id)?.name)
       .filter(Boolean);
   }
 
@@ -1144,7 +1130,7 @@ function renderPreps(v) {
     const term = q.value.toLowerCase().trim();
     body.innerHTML = '';
 
-    let preps = normalPreps();
+    let preps = normalPreps().sort((a,b) => (a.name||'').localeCompare(b.name||''));
     if (term) {
       preps = preps.filter(p =>
         (p.name||'').toLowerCase().includes(term) ||
@@ -1156,7 +1142,7 @@ function renderPreps(v) {
     let shown = 0;
 
     types.forEach(t => {
-      const arr = preps.filter(p => p.type === t);
+      const arr = preps.filter(p => p.prep_type === t);
       if (arr.length === 0) return;   // tomme grupper skjules
       shown += arr.length;
       const c = el('div',{class:'card'});
@@ -1185,7 +1171,7 @@ function renderPreps(v) {
     });
 
     // Preps uden kendt type ville ellers forsvinde helt
-    const other = preps.filter(p => !types.includes(p.type));
+    const other = preps.filter(p => !types.includes(p.prep_type));
     if (other.length) {
       shown += other.length;
       const c = el('div',{class:'card'});
@@ -1212,16 +1198,16 @@ function renderPreps(v) {
 }
 
 function renderPrepDetail(v, id) {
-  const p = state.data.preps.find(x => x.id === id);
+  const p = itemById(id);
   if (!p) { v.appendChild(el('div',{class:'empty'}, 'Prep not found.')); return; }
-  const comps = state.data.prep_components.filter(c => c.prep_id === id);
-  const ppu = prepPricePerUnit(id);
+  const comps = componentsOf(id);
+  const ppu = itemCostPerUnit(id);
 
   v.appendChild(el('button',{class:'btn ghost sm no-print', onclick:() => location.hash = '#prep'}, '← Back'));
 
   const hero = el('div',{class:'cocktail-hero'});
   hero.appendChild(el('h2',{}, p.name));
-  hero.appendChild(el('div',{class:'menu'}, p.type));
+  hero.appendChild(el('div',{class:'menu'}, p.prep_type || 'PREP'));
   hero.appendChild(el('div',{class:'meta'},
     el('div',{}, el('b',{},'Yield'), `${num(p.yield_quantity)} ${p.yield_unit}`),
     el('div',{}, el('b',{},'Shelf life'), p.shelf_life ? p.shelf_life.slice(0,40) : '—'),
@@ -1241,9 +1227,7 @@ function renderPrepDetail(v, id) {
     out.appendChild(el('div',{style:{fontSize:'13px',color:'var(--ink-mute)',marginBottom:'8px'}},
       `Scale to ${num(p.yield_quantity * factor)} ${p.yield_unit}:`));
     comps.forEach(c => {
-      let name = '?';
-      if (c.ingredient_id) name = state.data.ingredients.find(i => i.id === c.ingredient_id)?.name || 'ing';
-      else if (c.child_prep_id) name = state.data.preps.find(x => x.id === c.child_prep_id)?.name || 'prep';
+      const name = itemById(c.component_id)?.name || 'ingredient';
       out.appendChild(el('div',{class:'row',style:{borderBottom:'1px solid var(--line)',padding:'8px 0'}},
         el('div',{class:'grow'}, el('div',{class:'ttl'}, name)),
         el('div',{class:'right'}, `${num(c.quantity * factor, 1)} ${c.unit}`),
@@ -1264,14 +1248,9 @@ function renderPrepDetail(v, id) {
   const compCard = el('div',{class:'card'});
   compCard.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Components')));
   comps.forEach(c => {
-    let label = '?', sub = '';
-    if (c.ingredient_id) {
-      const ing = state.data.ingredients.find(i => i.id === c.ingredient_id);
-      label = ing?.name || 'ing'; sub = ing?.category || '';
-    } else if (c.child_prep_id) {
-      const cp = state.data.preps.find(x => x.id === c.child_prep_id);
-      label = cp?.name || 'prep'; sub = 'CHILD PREP';
-    }
+    const comp = itemById(c.component_id);
+    const label = comp?.name || 'ingredient';
+    const sub = isPrepItem(comp) ? 'CHILD PREP' : (comp?.category || '');
     compCard.appendChild(el('div',{class:'row'},
       el('div',{class:'grow'}, el('div',{class:'ttl'},label), el('div',{class:'sb'},sub)),
       el('div',{class:'right'}, `${num(c.quantity,2)} ${c.unit}`),
@@ -1302,15 +1281,15 @@ function renderInventory(v) {
   v.appendChild(el('div',{class:'section-hd'},
     el('h1',{},'Inventory'),
     el('div',{class:'rule'}),
-    el('div',{class:'sub'}, `${state.data.ingredients.length} ingredients`),
+    el('div',{class:'sub'}, `${pureIngredients().length} ingredients`),
   ));
 
   const search = el('input',{class:'search', placeholder:'Search ingredient…', oninput:render});
   v.appendChild(search);
 
   // Category filter
-  const cats = ['All', ...Array.from(new Set(state.data.ingredients.map(i => i.category).filter(Boolean))).sort()];
-  const sup = ['All', ...Array.from(new Set(state.data.ingredients.map(i => i.supplier).filter(Boolean))).sort()];
+  const cats = ['All', ...Array.from(new Set(pureIngredients().map(i => i.category).filter(Boolean))).sort()];
+  const sup = ['All', ...Array.from(new Set(pureIngredients().map(i => i.supplier).filter(Boolean))).sort()];
   const catSel = el('select',{class:'input',onchange:render});
   cats.forEach(c => catSel.appendChild(el('option',{value:c}, c)));
   const supSel = el('select',{class:'input',onchange:render});
@@ -1335,7 +1314,7 @@ function renderInventory(v) {
     const fcat = catSel.value;
     const fsup = supSel.value;
     list.innerHTML = '';
-    let rows = state.data.ingredients;
+    let rows = pureIngredients();
     if (fcat !== 'All') rows = rows.filter(i => i.category === fcat);
     if (fsup !== 'All') rows = rows.filter(i => i.supplier === fsup);
     if (term) rows = rows.filter(i => (i.name||'').toLowerCase().includes(term));
@@ -1409,6 +1388,16 @@ async function openIngredientEditor(ing) {
   fld(`Purchase price (${currentCurrency()})`,'purchase_price','number');
   fld('Min. stock','min_stock','number');
   fld('Barcode','barcode');
+
+  // Konvertering sker i den samme række (samme id), så cocktails og andre
+  // preps, der peger på ingrediensen, beholder deres linje.
+  if (ing && ing.id && !isPrepItem(ing)) {
+    form.appendChild(el('div',{style:{marginTop:'16px',borderTop:'1px solid var(--line)',paddingTop:'12px'}},
+      el('div',{class:'sb',style:{marginBottom:'8px'}},
+        'Made in-house now? Convert it to a prep. It moves to the Prep page and stays in every cocktail that uses it. Unsaved changes above are not kept.'),
+      el('button',{class:'btn ghost sm',onclick:()=>{ closeModal(); openPrepEditor(ing); }},'Convert to Prep →'),
+    ));
+  }
 
   await modal(isNew ? 'New ingredient' : 'Edit ingredient', form, async () => {
     if (!f.name) return toast('Name required','bad');
@@ -1541,21 +1530,20 @@ function renderForecast(body) {
       usage.set(ingId, (usage.get(ingId) || 0) + qty);
     }
     function expandPrep(prepId, qtyOfPrep) {
-      const prep = state.data.preps.find(p => p.id === prepId);
+      const prep = itemById(prepId);
       if (!prep || !prep.yield_quantity) return;
       const ratio = qtyOfPrep / prep.yield_quantity;
-      const comps = state.data.prep_components.filter(c => c.prep_id === prepId);
-      comps.forEach(c => {
-        if (c.ingredient_id) addIng(c.ingredient_id, c.quantity * ratio);
-        else if (c.child_prep_id) expandPrep(c.child_prep_id, c.quantity * ratio);
+      componentsOf(prepId).forEach(c => {
+        if (isPrepItem(itemById(c.component_id))) expandPrep(c.component_id, c.quantity * ratio);
+        else addIng(c.component_id, c.quantity * ratio);
       });
     }
     for (const [cid, n] of Object.entries(counts)) {
       if (!n) continue;
       const comps = state.data.cocktail_components.filter(cc => cc.cocktail_id === cid);
       comps.forEach(c => {
-        if (c.ingredient_id) addIng(c.ingredient_id, c.quantity * n);
-        else if (c.prep_id) expandPrep(c.prep_id, c.quantity * n);
+        if (isPrepItem(itemById(c.ingredient_id))) expandPrep(c.ingredient_id, c.quantity * n);
+        else addIng(c.ingredient_id, c.quantity * n);
       });
     }
     return usage;
@@ -1849,7 +1837,10 @@ async function openEventEditor(ev) {
         state.data.event_cocktails = state.data.event_cocktails.filter(x => x.event_id !== ev.id);
         state.data.event_prep_resp = state.data.event_prep_resp.filter(x => x.event_id !== ev.id);
         state.data.cocktails = state.data.cocktails.filter(c => c.event_id !== ev.id);
-        state.data.preps     = state.data.preps.filter(p => p.event_id !== ev.id);
+        const goneIds = new Set(state.data.ingredients.filter(i => i.event_id === ev.id).map(i => i.id));
+        state.data.ingredients = state.data.ingredients.filter(i => i.event_id !== ev.id);
+        state.data.ingredient_components = state.data.ingredient_components
+          .filter(c => !goneIds.has(c.parent_id) && !goneIds.has(c.component_id));
         closeModal(); toast('Event deleted','ok'); location.hash = '#events';
       }},'Delete event'),
     ));
@@ -2030,7 +2021,7 @@ function renderEventDetail(v, id) {
       rc.appendChild(el('div',{class:'row'},
         el('div',{class:'grow'},
           el('div',{class:'ttl'}, p.name),
-          el('div',{class:'sb'}, p.type || ''),
+          el('div',{class:'sb'}, p.prep_type || ''),
         ),
         el('div',{class:'right',style:{display:'flex',gap:'6px'}}, mkBtn('bar','Bar'), mkBtn('host','Host')),
       ));
@@ -2041,10 +2032,10 @@ function renderEventDetail(v, id) {
   // ---- Packing lists ----
   const { bar, host, warnings } = computeEventLists(id);
 
-  const ingName = i => state.data.ingredients.find(x => x.id === i)?.name || '(unknown)';
-  const prepName = i => state.data.preps.find(x => x.id === i)?.name || '(unknown)';
+  const ingName = i => itemById(i)?.name || '(unknown)';
+  const prepName = ingName;
 
-  const listCard = (title, subtitle, entries, emptyText) => {
+  const listCard =(title, subtitle, entries, emptyText) => {
     const c = el('div',{class:'card',style:{marginTop:'16px'}});
     c.appendChild(el('div',{class:'card-hd'}, el('h2',{},title), el('span',{class:'chip'}, String(entries.length))));
     if (subtitle) c.appendChild(el('div',{class:'sb',style:{padding:'0 12px 8px'}}, subtitle));
@@ -2092,14 +2083,14 @@ function renderEventDetail(v, id) {
     const pc = el('div',{class:'card',style:{marginTop:'16px'}});
     pc.appendChild(el('div',{class:'card-hd'}, el('h2',{},'Prep instructions for the host')));
     [...host.preps.entries()].forEach(([pid, o]) => {
-      const p = state.data.preps.find(x => x.id === pid);
+      const p = itemById(pid);
       if (!p) return;
       const b = el('div',{style:{padding:'12px',borderTop:'1px solid var(--line)'}});
       b.appendChild(el('div',{style:{fontWeight:700,marginBottom:'2px'}},
         `${p.name} — ${num(o.qty,1)} ${o.unit || ''}`));
       b.appendChild(el('div',{class:'sb'}, `Recipe yields ${num(p.yield_quantity)} ${p.yield_unit || ''}`));
-      state.data.prep_components.filter(x => x.prep_id === pid).forEach(x => {
-        const nm = x.ingredient_id ? ingName(x.ingredient_id) : prepName(x.child_prep_id);
+      componentsOf(pid).forEach(x => {
+        const nm = ingName(x.component_id);
         b.appendChild(el('div',{style:{fontSize:'12px',marginTop:'3px'}}, `· ${nm} — ${num(x.quantity)} ${x.unit||''}`));
       });
       if (p.procedure)  b.appendChild(el('div',{style:{fontSize:'12px',marginTop:'8px'}}, p.procedure));
@@ -2176,7 +2167,7 @@ async function openEventCocktailPicker(ev) {
 
       const comps = state.data.cocktail_components.filter(x => x.cocktail_id === src.id)
         .map(x => ({ tenant_id: state.activeTenantId, cocktail_id: nc.id,
-          ingredient_id: x.ingredient_id, prep_id: x.prep_id, quantity: x.quantity, unit: x.unit }));
+          ingredient_id: x.ingredient_id, quantity: x.quantity, unit: x.unit }));
       if (comps.length) {
         const { data: cd, error: ce } = await state.sb.from('cocktail_components').insert(comps).select();
         if (ce) toast('Components: ' + ce.message,'bad');
@@ -2254,8 +2245,7 @@ function renderEventHostDoc(v, id) {
     'Everything below is what you bring. The bar handles the rest.');
 
   const { host } = computeEventLists(id);
-  const ingName = i => state.data.ingredients.find(x => x.id === i)?.name || '(unknown)';
-  const prepName = i => state.data.preps.find(x => x.id === i)?.name || '(unknown)';
+  const ingName = i => itemById(i)?.name || '(unknown)';
 
   if (!host.preps.size) {
     v.appendChild(el('div',{class:'empty'},
@@ -2279,14 +2269,14 @@ function renderEventHostDoc(v, id) {
 
   // Opskrifter
   [...host.preps.entries()].forEach(([pid, o]) => {
-    const p = state.data.preps.find(x => x.id === pid);
+    const p = itemById(pid);
     if (!p) return;
     const card = el('div',{class:'gs-cocktail'});
     card.appendChild(el('h3',{}, p.name));
     card.appendChild(el('div',{class:'gs-menu'},
       `Make ${num(o.qty,1)} ${o.unit || ''} — the recipe below yields ${num(p.yield_quantity)} ${p.yield_unit || ''}`));
-    state.data.prep_components.filter(x => x.prep_id === pid).forEach(x => {
-      const nm = x.ingredient_id ? ingName(x.ingredient_id) : prepName(x.child_prep_id);
+    componentsOf(pid).forEach(x => {
+      const nm = ingName(x.component_id);
       card.appendChild(el('div',{style:{fontSize:'12px',marginTop:'3px'}},
         `· ${nm} — ${num(x.quantity)} ${x.unit||''}`));
     });
@@ -2733,8 +2723,8 @@ async function openCocktailEditor(cocktail, eventId = null) {
     compRows = state.data.cocktail_components
       .filter(c => c.cocktail_id === cocktail.id)
       .map(c => ({
-        type: c.ingredient_id ? 'ingredient' : 'prep',
-        id: c.ingredient_id || c.prep_id,
+        type: isPrepItem(itemById(c.ingredient_id)) ? 'prep' : 'ingredient',
+        id: c.ingredient_id,
         quantity: c.quantity,
         unit: c.unit,
         _db_id: c.id,
@@ -2816,7 +2806,7 @@ async function openCocktailEditor(cocktail, eventId = null) {
       const idSel = el('select',{class:'input',style:{flex:1,padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
       function populateIdSel(type) {
         idSel.innerHTML = '';
-        const items = type === 'ingredient' ? state.data.ingredients
+        const items = type === 'ingredient' ? pureIngredients()
           : (evId ? prepsForEvent(evId) : normalPreps());
         items.forEach(it => {
           const o = el('option',{value:it.id}, it.name);
@@ -2855,7 +2845,7 @@ async function openCocktailEditor(cocktail, eventId = null) {
   renderCompRows();
 
   compSection.appendChild(el('button',{class:'btn ghost sm',style:{marginTop:'4px'},
-    onclick:()=>{ compRows.push({type:'ingredient',id:state.data.ingredients[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
+    onclick:()=>{ compRows.push({type:'ingredient',id:pureIngredients()[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
     '+ Add component'));
   compSection.appendChild(inlineIngredientCreator(ing => {
     compRows.push({ type:'ingredient', id: ing.id, quantity:null, unit: ing.purchase_unit || 'ml' });
@@ -2907,8 +2897,7 @@ async function openCocktailEditor(cocktail, eventId = null) {
         tenant_id: state.activeTenantId,
         quantity: row.quantity,
         unit: row.unit,
-        ingredient_id: row.type === 'ingredient' ? row.id : null,
-        prep_id: row.type === 'prep' ? row.id : null,
+        ingredient_id: row.id,
       };
       const { data: cd, error: ce } = await state.sb.from('cocktail_components').insert(cp).select().single();
       if (ce) toast('Component error: ' + ce.message,'bad');
@@ -2935,27 +2924,35 @@ async function openCocktailEditor(cocktail, eventId = null) {
 // ============================================================================
 // PREP EDITOR (admin)
 // ============================================================================
+// `prep` kan være en eksisterende prep, en almindelig ingrediens der skal
+// konverteres til prep (samme række, samme id), eller null for en ny prep.
 async function openPrepEditor(prep, eventId = null) {
   const isNew = !prep;
+  const converting = !isNew && !isPrepItem(prep);
   const evId = prep ? (prep.event_id || null) : (eventId || null);
   const f = prep ? { ...prep } : {
-    name:'', type:'PREMIX', yield_quantity:'', yield_unit:'ml',
+    name:'', prep_type:'PREMIX', yield_quantity:'', yield_unit:'ml',
     procedure:'', shelf_life:'',
   };
+  if (!f.prep_type) f.prep_type = 'PREMIX';
+  if (!f.yield_unit) f.yield_unit = prep?.purchase_unit || 'ml';
 
   let compRows = [];
   if (!isNew) {
-    compRows = state.data.prep_components
-      .filter(c => c.prep_id === prep.id)
+    compRows = componentsOf(prep.id)
       .map(c => ({
-        type: c.ingredient_id ? 'ingredient' : 'prep',
-        id: c.ingredient_id || c.child_prep_id,
+        type: isPrepItem(itemById(c.component_id)) ? 'prep' : 'ingredient',
+        id: c.component_id,
         quantity: c.quantity,
         unit: c.unit,
       }));
   }
 
   const form = el('div');
+  if (converting) {
+    form.appendChild(el('div',{class:'sb',style:{marginBottom:'12px'}},
+      `${prep.name} becomes a prep. It stays in every cocktail and prep that already uses it.`));
+  }
 
   function fld(label, key, type='text', extra={}) {
     const inp = el(type==='textarea' ? 'textarea' : 'input',
@@ -2968,9 +2965,9 @@ async function openPrepEditor(prep, eventId = null) {
   fld('Name','name');
 
   // Type select
-  const typeSel = el('select',{class:'input', onchange:e=>f.type=e.target.value});
+  const typeSel = el('select',{class:'input', onchange:e=>f.prep_type=e.target.value});
   ['PREMIX','BATCH','SYRUP','INFUSION','CORDIAL'].forEach(t => {
-    const o = el('option',{value:t},t); if (t===f.type) o.selected=true; typeSel.appendChild(o);
+    const o = el('option',{value:t},t); if (t===f.prep_type) o.selected=true; typeSel.appendChild(o);
   });
   form.appendChild(el('div',{class:'field'}, el('label',{},'Type'), typeSel));
 
@@ -2999,10 +2996,10 @@ async function openPrepEditor(prep, eventId = null) {
       const idSel = el('select',{class:'input',style:{flex:1,padding:'8px 6px',minHeight:'38px',fontSize:'13px'}});
       function populateIdSel(type) {
         idSel.innerHTML = '';
-        // For prep type, exclude the prep being edited to avoid self-reference
-        const items = type === 'ingredient'
-          ? state.data.ingredients
-          : (evId ? prepsForEvent(evId) : normalPreps()).filter(p => isNew || p.id !== prep.id);
+        // Udeluk rækken selv, så en prep ikke kan pege på sig selv
+        const items = (type === 'ingredient'
+          ? pureIngredients()
+          : (evId ? prepsForEvent(evId) : normalPreps())).filter(p => isNew || p.id !== prep.id);
         items.forEach(it => {
           const o = el('option',{value:it.id}, it.name);
           if (it.id === row.id) o.selected = true;
@@ -3040,7 +3037,7 @@ async function openPrepEditor(prep, eventId = null) {
   renderCompRows();
 
   compSection.appendChild(el('button',{class:'btn ghost sm',style:{marginTop:'4px'},
-    onclick:()=>{ compRows.push({type:'ingredient',id:state.data.ingredients[0]?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
+    onclick:()=>{ compRows.push({type:'ingredient',id:pureIngredients().find(i => isNew || i.id !== prep.id)?.id||null,quantity:null,unit:'ml'}); renderCompRows(); }},
     '+ Add component'));
   compSection.appendChild(inlineIngredientCreator(ing => {
     compRows.push({ type:'ingredient', id: ing.id, quantity:null, unit: ing.purchase_unit || 'ml' });
@@ -3048,13 +3045,13 @@ async function openPrepEditor(prep, eventId = null) {
   }));
   form.appendChild(compSection);
 
-  await modal(isNew ? 'New prep' : 'Edit: ' + prep.name, form, async () => {
+  await modal(isNew ? 'New prep' : (converting ? 'Convert to prep: ' : 'Edit: ') + (prep?.name || ''), form, async () => {
     if (!f.name) return toast('Name required','bad');
     if (!f.yield_quantity) return toast('Yield quantity required','bad');
 
     const payload = {
       tenant_id: state.activeTenantId,
-      name: f.name, type: f.type,
+      name: f.name, prep_type: f.prep_type,
       yield_quantity: f.yield_quantity, yield_unit: f.yield_unit||'ml',
       procedure: f.procedure||null, shelf_life: f.shelf_life||null,
       event_id: evId,
@@ -3062,34 +3059,33 @@ async function openPrepEditor(prep, eventId = null) {
 
     let prepId;
     if (isNew) {
-      const { data, error } = await state.sb.from('preps').insert(payload).select().single();
+      const { data, error } = await state.sb.from('ingredients').insert(payload).select().single();
       if (error) return toast(error.message,'bad');
-      state.data.preps.push(data);
+      state.data.ingredients.push(data);
       prepId = data.id;
     } else {
-      const { error } = await state.sb.from('preps').update(payload).eq('id', prep.id);
+      const { error } = await state.sb.from('ingredients').update(payload).eq('id', prep.id);
       if (error) return toast(error.message,'bad');
       Object.assign(prep, payload);
       prepId = prep.id;
       // Delete existing components
-      await state.sb.from('prep_components').delete().eq('prep_id', prepId);
-      state.data.prep_components = state.data.prep_components.filter(c => c.prep_id !== prepId);
+      await state.sb.from('ingredient_components').delete().eq('parent_id', prepId);
+      state.data.ingredient_components = state.data.ingredient_components.filter(c => c.parent_id !== prepId);
     }
 
     // Insert components
     for (const row of compRows) {
       if (!row.id || !row.quantity || !row.unit) continue;
       const cp = {
-        prep_id: prepId,
+        parent_id: prepId,
         tenant_id: state.activeTenantId,
         quantity: row.quantity,
         unit: row.unit,
-        ingredient_id: row.type === 'ingredient' ? row.id : null,
-        child_prep_id: row.type === 'prep' ? row.id : null,
+        component_id: row.id,
       };
-      const { data: cd, error: ce } = await state.sb.from('prep_components').insert(cp).select().single();
+      const { data: cd, error: ce } = await state.sb.from('ingredient_components').insert(cp).select().single();
       if (ce) toast('Component error: ' + ce.message,'bad');
-      else state.data.prep_components.push(cd);
+      else state.data.ingredient_components.push(cd);
     }
 
     toast('Saved','ok');

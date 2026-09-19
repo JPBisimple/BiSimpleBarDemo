@@ -85,7 +85,7 @@ så `anon` er reelt blokeret uanset det brede grant.
 selv `tenant_id` ved insert, men `is_tenant_admin(tenant_id)`/
 `is_tenant_member(tenant_id)` i RLS tjekker uafhængigt medlemskab i
 `memberships`. Composite foreign keys (`UNIQUE (id, tenant_id)` på
-`cocktails`, `preps`, `menu_groups`, `menus`, `events`) bruges
+`cocktails`, `ingredients`, `menu_groups`, `menus`, `events`) bruges
 gennemgående til at forhindre krydstenant-reference på FK-niveau.
 
 **Ingen `esc()`-lignende hjælpefunktion findes eller er nødvendig:**
@@ -189,12 +189,23 @@ brugere oprettes manuelt af admin i Supabase.
 tenants(id, slug, name, city, subscription_status, subscription_tier, theme jsonb, created_at, currency, locale)
 profiles(id, email, full_name, created_at)
 memberships(id, user_id, tenant_id, role, created_at)
-ingredients(id, tenant_id, name, category, supplier, purchase_size, purchase_unit, purchase_price, current_stock, min_stock, barcode, image_url, created_at)
-preps(id, tenant_id, name, type, yield_quantity, yield_unit, procedure, shelf_life, created_at, event_id)
-prep_components(id, prep_id, tenant_id, ingredient_id, child_prep_id, quantity, unit)
+ingredients(id, tenant_id, name, category, supplier, purchase_size, purchase_unit, purchase_price, current_stock, min_stock, barcode, image_url, prep_type, yield_quantity, yield_unit, procedure, shelf_life, event_id, created_at)
+ingredient_components(id, tenant_id, parent_id, component_id, quantity, unit)
 cocktails(id, tenant_id, name, menu_wording, flavour_profile, allergens, glassware, ice, garnish, tools, procedure, alcohol_percent, sell_price, is_active, image_url, created_at, event_id)
-cocktail_components(id, cocktail_id, tenant_id, ingredient_id, prep_id, quantity, unit)
+cocktail_components(id, cocktail_id, tenant_id, ingredient_id, quantity, unit)
 ```
+
+**Ingredienser og preps er ÉN tabel** (sammenlagt 2026-09-19, migration
+`20260919100000_merge_preps_into_ingredients.sql` i `Rezypedia-internal`).
+En række er en *prep*, hvis den har en stykliste (rækker i
+`ingredient_components` med `parent_id = id`) eller en `prep_type`; ellers
+er den en ren ingrediens. Der er intet `is_prep`-flag — klienten udleder det
+med `isPrepItem()`, og Inventory/Prep-siderne er blot to filtre over
+`state.data.ingredients` (`pureIngredients()` / `normalPreps()`).
+`prep_type`/`yield_*`/`procedure`/`shelf_life` bruges kun for preps.
+"Konvertér til Prep" (knap i ingrediens-editoren) er en UPDATE på samme række,
+så cocktails og andre preps, der peger på den, beholder deres linje.
+Den gamle `preps`/`prep_components`-model findes ikke mere.
 
 `profiles` findes i skemaet, men klienten (`index.html`) kalder aldrig
 `.from('profiles')` direkte — brugerens navn/mail kommer udelukkende fra
@@ -223,17 +234,17 @@ i databasen (ikke kun konvention i klienten).
   bruger stadig det gamle kolonnenavn — **kør det ikke direkte**, det
   vil fejle. `seed.sql` i `Rezypedia-internal` er den gyldige, opdaterede version.
 - **Navneunikhed er ikke ét simpelt constraint.** De gamle
-  `cocktails_tenant_id_name_key` / `preps_tenant_id_name_key` er droppet
+  `cocktails_tenant_id_name_key` / `ingredients_tenant_id_name_key` er droppet
   og erstattet af partielle unikke indekser, så en eventkopi må hedde
   det samme som originalen:
   ```
   cocktails_name_normal_uq  ON cocktails (tenant_id, name)            WHERE event_id IS NULL
   cocktails_name_event_uq   ON cocktails (tenant_id, event_id, name)  WHERE event_id IS NOT NULL
-  preps_name_normal_uq      ON preps     (tenant_id, name)            WHERE event_id IS NULL
-  preps_name_event_uq       ON preps     (tenant_id, event_id, name)  WHERE event_id IS NOT NULL
+  ingredients_name_normal_uq ON ingredients (tenant_id, name)            WHERE event_id IS NULL
+  ingredients_name_event_uq  ON ingredients (tenant_id, event_id, name)  WHERE event_id IS NOT NULL
   ```
   **Konsekvens:** `ON CONFLICT (tenant_id, name)` virker ikke længere på
-  `cocktails`/`preps` — skal være
+  `cocktails`/`ingredients` — skal være
   `ON CONFLICT (tenant_id, name) WHERE event_id IS NULL`. Rammer kun
   manuelle SQL/seed-scripts, ikke selve appen. `menus` har tilsvarende to
   partielle indekser, så samme menunavn må gå igen i forskellige grupper.
@@ -249,7 +260,7 @@ levende reference** tilbage til den. Det er et bekræftet designvalg, ikke
 en begrænsning der skal rettes. `normalCocktails()`/`normalPreps()`
 filtrerer biblioteket til kun at vise rækker uden `event_id`.
 
-Fast værdisæt for `preps.type` i klienten (ikke en DB-enum, men en
+Fast værdisæt for `ingredients.prep_type` i klienten (ikke en DB-enum, men en
 hardkodet JS-liste, brugt til gruppering i UI'et):
 `PREMIX`, `BATCH`, `SYRUP`, `INFUSION`, `CORDIAL` (+ "Other"-bucket for
 ukendte typer).
@@ -281,9 +292,11 @@ er et tema.
 
 ### Cocktails, preps og komponenter
 
-- En prep-komponent peger på enten en `ingredient_id` eller en
-  `child_prep_id` (preps kan indeholde andre preps, rekursivt).
-  Selvreference opdages og springes over med en advarsel.
+- En stykliste-linje (`ingredient_components.component_id`) og en
+  cocktail-linje (`cocktail_components.ingredient_id`) peger begge på en
+  række i `ingredients` — en ren ingrediens eller en prep (preps kan
+  indeholde andre preps, rekursivt). Selvreference opdages og springes
+  over med en advarsel.
 - **Bevidst begrænsning, ikke en fejl: ingen enhedsomregning.** Gram og
   milliliter lægges sammen som rene tal, både i kostprisberegning og i
   events' pakkelister. Markeres med `⚠` når enheder blandes i samme
