@@ -2808,6 +2808,7 @@ async function openCocktailEditor(cocktail, eventId = null) {
         idSel.innerHTML = '';
         const items = type === 'ingredient' ? pureIngredients()
           : (evId ? prepsForEvent(evId) : normalPreps());
+        items.sort((a,b) => (a.name||"").localeCompare(b.name||""));
         items.forEach(it => {
           const o = el('option',{value:it.id}, it.name);
           if (it.id === row.id) o.selected = true;
@@ -3000,6 +3001,7 @@ async function openPrepEditor(prep, eventId = null) {
         const items = (type === 'ingredient'
           ? pureIngredients()
           : (evId ? prepsForEvent(evId) : normalPreps())).filter(p => isNew || p.id !== prep.id);
+        items.sort((a,b) => (a.name||"").localeCompare(b.name||""));
         items.forEach(it => {
           const o = el('option',{value:it.id}, it.name);
           if (it.id === row.id) o.selected = true;
