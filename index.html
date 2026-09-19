@@ -1381,7 +1381,8 @@ async function openIngredientEditor(ing) {
     form.appendChild(el('div',{class:'field'}, el('label',{for:id}, label), inp));
   }
   fld('Name','name');
-  fld('Category','category');
+  fld('Category','category','text',{list:'category-suggestions'});
+  form.appendChild(categoryDatalist());
   fld('Supplier','supplier');
   fld('Purchase size','purchase_size','number');
   fld('Unit','purchase_unit');
@@ -2633,6 +2634,14 @@ async function openTenantSettings() {
 // ============================================================================
 // COCKTAIL EDITOR (admin)
 // ============================================================================
+// Forslag til Category ud fra de kategorier, der allerede findes i tenanten —
+// feltet forbliver fri tekst, men forslagene undgår dubletter som Spirit/SPIRIT.
+function categoryDatalist() {
+  const cats = [...new Set(pureIngredients().map(i => i.category).filter(Boolean))]
+    .sort((a,b) => a.localeCompare(b));
+  return el('datalist',{id:'category-suggestions'}, ...cats.map(c => el('option',{value:c})));
+}
+
 // Lille inline-formular til at oprette en ingrediens uden at forlade editoren.
 // Kan ikke være en modal: modal() lukker den underliggende editor og
 // brugerens ikke-gemte arbejde ville gå tabt.
@@ -2649,13 +2658,14 @@ function inlineIngredientCreator(onCreated) {
 
   const nameI = inp('Ingredient name *','name');
   const catI  = inp('Category','category');
+  catI.setAttribute('list','category-suggestions');
   const sizeI = inp('Purchase size *','purchase_size','number');
   const unitI = inp('Unit *','purchase_unit');
   unitI.value = f.purchase_unit;
   const priceI = inp('Purchase price *','purchase_price','number');
 
   panel.appendChild(el('div',{class:'field'}, nameI));
-  panel.appendChild(el('div',{class:'field'}, catI));
+  panel.appendChild(el('div',{class:'field'}, catI, categoryDatalist()));
   panel.appendChild(el('div',{style:{display:'flex',gap:'6px'}},
     el('div',{style:{flex:1}}, sizeI),
     el('div',{style:{width:'80px'}}, unitI),
